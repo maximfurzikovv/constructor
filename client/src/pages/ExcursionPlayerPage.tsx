@@ -93,19 +93,23 @@ export default function ExcursionPlayerPage() {
       const direct: [number, number][] = [[from.lat, from.lng], [to.lat, to.lng]];
       const directDistance = distanceMeters(from.lat, from.lng, to.lat, to.lng);
       const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
-      const url = `https://router.project-osrm.org/route/v1/foot/${coords}?overview=full&geometries=geojson&steps=false&alternatives=false`;
+      const url = `https://routing.openstreetmap.de/routed-foot/route/v1/foot/${coords}?overview=full&geometries=geojson&steps=false&alternatives=true`;
       try {
         const response = await fetch(url);
         const data = await response.json();
-        const coordinates = data.routes?.[0]?.geometry?.coordinates;
-        if (!coordinates || data.code !== 'Ok') return direct;
+        const routes = Array.isArray(data.routes) ? data.routes : [];
+        if (data.code !== 'Ok' || routes.length === 0) return direct;
+        const shortest = routes
+          .filter((route: any) => route.geometry?.coordinates?.length)
+          .sort((a: any, b: any) => (a.distance || Infinity) - (b.distance || Infinity))[0];
+        const coordinates = shortest?.geometry?.coordinates;
+        if (!coordinates) return direct;
         const geo: [number, number][] = coordinates.map(
           ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
         );
-        const routedDistance = data.routes?.[0]?.distance || routeDistance(geo);
-        const tooLong = directDistance > 0 && routedDistance > Math.max(directDistance * 1.6, directDistance + 220);
-        const tooShortForRouting = directDistance < 180;
-        return tooLong || tooShortForRouting ? direct : geo;
+        const routedDistance = shortest.distance || routeDistance(geo);
+        const looksLikeLoop = directDistance > 0 && routedDistance > Math.max(directDistance * 1.45, directDistance + 180);
+        return looksLikeLoop ? direct : geo;
       } catch {
         return direct;
       }

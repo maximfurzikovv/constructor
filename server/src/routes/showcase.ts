@@ -22,6 +22,8 @@ router.put('/constructor', async (req, res) => {
       constructorJson: json,
       publishedJson: json,
       published: true,
+      title: 'Экскурсии Максима Фурзикова',
+      slug: 'maxim-furzikov',
     },
   });
   res.json({ data: { success: true } });
@@ -35,15 +37,26 @@ router.put('/constructor/draft', async (req, res) => {
     where: { id: site.id },
     data: {
       constructorJson: JSON.stringify(req.body),
+      title: 'Экскурсии Максима Фурзикова',
+      slug: 'maxim-furzikov',
     },
   });
   res.json({ data: { success: true } });
 });
 
 router.get('/:slug', async (req, res) => {
-  const site = await prisma.showcaseSite.findUnique({
+  let site = await prisma.showcaseSite.findUnique({
     where: { slug: req.params.slug },
   });
+  if (!site && req.params.slug === 'maxim-furzikov') {
+    const current = await prisma.showcaseSite.findFirst({ where: { authorId: 'user-1' } });
+    if (current) {
+      site = await prisma.showcaseSite.update({
+        where: { id: current.id },
+        data: { slug: 'maxim-furzikov', title: 'Экскурсии Максима Фурзикова' },
+      });
+    }
+  }
   if (!site) return res.status(404).json({ error: 'Сайт не найден' });
 
   const publishedExcursions = await prisma.excursion.findMany({

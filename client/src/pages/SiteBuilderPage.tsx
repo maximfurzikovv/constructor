@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import { api } from '../api/client';
 import Button from '../components/ui/Button';
@@ -75,6 +75,7 @@ interface ThemeConfig {
   primaryColor: string;
   fontFamily: string;
   borderRadius: string;
+  siteBg: string;
   headerStyle: 'light' | 'dark';
   headerBg: string;
   headerTextColor: string;
@@ -102,6 +103,7 @@ const defaultTheme: ThemeConfig = {
   primaryColor: '#2563eb',
   fontFamily: 'system',
   borderRadius: '8',
+  siteBg: '#ffffff',
   headerStyle: 'light',
   headerBg: '#ffffff',
   headerTextColor: '#0f172a',
@@ -541,6 +543,7 @@ export default function SiteBuilderPage() {
   const [tab, setTab] = useState<BuilderTab>('sections');
   const [selection, setSelection] = useState<Selection | null>(null);
   const [viewport, setViewport] = useState<ViewportMode>('desktop');
+  const [zoom, setZoom] = useState(100);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [tours, setTours] = useState<any[]>([]);
@@ -549,9 +552,15 @@ export default function SiteBuilderPage() {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [draggedElement, setDraggedElement] = useState<{ sectionId: string; columnId: string; elementId: string } | null>(null);
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const restoreRef = useRef(false);
+  const historyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    api.getShowcase('aleksey-petrov').then((d: any) => setSite(d));
+    api.getShowcase('maxim-furzikov')
+      .then((d: any) => setSite(d))
+      .catch(() => api.getShowcase('aleksey-petrov').then((d: any) => setSite({ ...d, title: 'Экскурсии Максима Фурзикова', slug: 'maxim-furzikov' })));
     api.getExcursions().then((d: any) => setTours(d));
     api.getConstructorData()
       .then((d: any) => {
@@ -562,6 +571,37 @@ export default function SiteBuilderPage() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!site) return;
+    if (restoreRef.current) {
+      restoreRef.current = false;
+      return;
+    }
+    if (historyTimerRef.current) window.clearTimeout(historyTimerRef.current);
+    historyTimerRef.current = window.setTimeout(() => {
+      const snapshot = JSON.stringify({ pages, theme });
+      setHistory((current) => {
+        if (current[historyIndex] === snapshot) return current;
+        const base = historyIndex >= 0 ? current.slice(0, historyIndex + 1) : current;
+        return [...base, snapshot].slice(-50);
+      });
+      setHistoryIndex((index) => Math.min(index + 1, 49));
+    }, 350);
+  }, [pages, theme, site]);
+
+  const restoreSnapshot = (index: number) => {
+    const snapshot = history[index];
+    if (!snapshot) return;
+    const parsed = JSON.parse(snapshot);
+    restoreRef.current = true;
+    setPages(parsed.pages);
+    setTheme({ ...defaultTheme, ...parsed.theme });
+    setHistoryIndex(index);
+  };
+
+  const undo = () => restoreSnapshot(Math.max(0, historyIndex - 1));
+  const redo = () => restoreSnapshot(Math.min(history.length - 1, historyIndex + 1));
 
   const activePage = pages.find((p) => p.id === activePageId) || pages[0];
 
@@ -990,6 +1030,15 @@ export default function SiteBuilderPage() {
             ))}
           </div>
           <div className="preview-actions">
+            <div className="history-actions">
+              <button type="button" onClick={undo} disabled={historyIndex <= 0} title="Отменить">↶</button>
+              <button type="button" onClick={redo} disabled={historyIndex >= history.length - 1} title="Вернуть">↷</button>
+            </div>
+            <div className="zoom-control">
+              <button type="button" onClick={() => setZoom((value) => Math.max(50, value - 10))}>-</button>
+              <span>{zoom}%</span>
+              <button type="button" onClick={() => setZoom((value) => Math.min(150, value + 10))}>+</button>
+            </div>
             <div className="viewport-switcher">
               {(['desktop', 'tablet', 'mobile'] as ViewportMode[]).map((mode) => (
                 <button key={mode} className={viewport === mode ? 'active' : ''} onClick={() => setViewport(mode)}>
@@ -997,7 +1046,6 @@ export default function SiteBuilderPage() {
                 </button>
               ))}
             </div>
-            {statusMsg && <span className="status-msg">{statusMsg}</span>}
             <Button variant="secondary" size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить черновик'}</Button>
             <Button size="sm" onClick={handlePublish} disabled={publishing}>{publishing ? 'Публикация...' : 'Опубликовать'}</Button>
             <button
@@ -1010,8 +1058,19 @@ export default function SiteBuilderPage() {
             </button>
           </div>
         </div>
+        {statusMsg && <div className="builder-toast">{statusMsg}</div>}
 
-        <div className={`preview-frame viewport-${viewport}`} style={{ fontFamily: getFontFamily(theme.fontFamily), '--preview-primary': theme.primaryColor, '--preview-radius': `${theme.borderRadius}px` } as React.CSSProperties}>
+        <div
+          className={`preview-frame viewport-${viewport}`}
+          style={{
+            fontFamily: getFontFamily(theme.fontFamily),
+            '--preview-primary': theme.primaryColor,
+            '--preview-radius': `${theme.borderRadius}px`,
+            background: theme.siteBg,
+            transform: `scale(${zoom / 100})`,
+            transformOrigin: 'top center',
+          } as React.CSSProperties}
+        >
           <div className={`preview-block-header ${selection?.type === 'header' ? 'selected' : ''}`} onClick={() => setSelection({ type: 'header' })}>
             <div
               className={`preview-site-header ${theme.headerStyle === 'dark' ? 'dark' : ''} nav-${theme.headerNavAlign}`}
@@ -1274,6 +1333,7 @@ function GeneralThemeEditor({ theme, setTheme }: { theme: ThemeConfig; setTheme:
     <div className="theme-form">
       <p className="panel-label">Общие настройки</p>
       <ColorField label="Основной цвет" value={theme.primaryColor} onChange={(primaryColor) => setTheme({ ...theme, primaryColor })} />
+      <ColorField label="Фон сайта" value={theme.siteBg} onChange={(siteBg) => setTheme({ ...theme, siteBg })} />
       <div className="theme-field">
         <label>Шрифт</label>
         <select className="theme-select" value={theme.fontFamily} onChange={(event) => setTheme({ ...theme, fontFamily: event.target.value })}>

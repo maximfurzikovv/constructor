@@ -81,6 +81,7 @@ function ConstructorSite({ site, constructorData, slug }: { site: any; construct
         fontFamily,
         '--sc-primary': theme.primaryColor || '#2563eb',
         '--sc-radius': `${theme.borderRadius || '8'}px`,
+        '--sc-site-bg': theme.siteBg || '#ffffff',
         '--sc-header-bg': theme.headerBg || '#ffffff',
         '--sc-header-color': theme.headerTextColor || '#0f172a',
         '--sc-header-gap': `${theme.headerNavGap || 16}px`,
