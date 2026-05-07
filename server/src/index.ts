@@ -6,6 +6,7 @@ import excursionsRoutes from './routes/excursions';
 import pointsRoutes from './routes/points';
 import mediaRoutes from './routes/media';
 import showcaseRoutes from './routes/showcase';
+import prisma, { withDbRetry } from './db';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -25,6 +26,16 @@ app.use('/api/showcase', showcaseRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/health/db', async (_req, res) => {
+  try {
+    await withDbRetry(() => prisma.$queryRaw`SELECT 1`, 2);
+    res.json({ status: 'ok', database: 'ok', timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error('Database health check failed:', error);
+    res.status(503).json({ status: 'error', database: 'unavailable' });
+  }
 });
 
 if (process.env.NODE_ENV === 'production') {
