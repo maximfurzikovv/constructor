@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: excursion-constructor
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run deploy:start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false

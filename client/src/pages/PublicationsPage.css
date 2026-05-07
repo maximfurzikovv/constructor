@@ -1,0 +1,37 @@
+.publications-page h1 {
+  margin-bottom: 4px;
+}
+
+.pub-subtitle {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.pub-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pub-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+
+.pub-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pub-info h3 {
+  font-size: 15px;
+}
+
+.pub-city {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}

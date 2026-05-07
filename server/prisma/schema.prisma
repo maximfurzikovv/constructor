@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  avatar    String?
+  role      String   @default("author")
+  createdAt DateTime @default(now())
+
+  excursions    Excursion[]
+  showcaseSites ShowcaseSite[]
+}
+
+model Excursion {
+  id                String   @id @default(uuid())
+  title             String
+  description       String   @default("")
+  authorId          String
+  status            String   @default("draft")
+  city              String   @default("")
+  coverImage        String?
+  publishedSnapshot String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  author User   @relation(fields: [authorId], references: [id])
+  route  Route?
+  media  Media[]
+}
+
+model Route {
+  id           String @id @default(uuid())
+  excursionId  String @unique
+  routeJson    String @default("{\"type\":\"LineString\",\"coordinates\":[]}")
+  duration     Int    @default(0)
+  distance     Int    @default(0)
+  transport    String @default("walk")
+
+  excursion Excursion @relation(fields: [excursionId], references: [id], onDelete: Cascade)
+  points    Point[]
+}
+
+model Point {
+  id          String @id @default(uuid())
+  routeId     String
+  title       String
+  description String @default("")
+  lat         Float
+  lng         Float
+  order       Int
+  duration    Int    @default(5)
+  radius      Int    @default(50)
+
+  route Route   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  media Media[]
+}
+
+model Media {
+  id          String   @id @default(uuid())
+  excursionId String
+  pointId     String?
+  type        String
+  url         String
+  title       String   @default("")
+  description String?
+  createdAt   DateTime @default(now())
+
+  excursion Excursion @relation(fields: [excursionId], references: [id], onDelete: Cascade)
+  point     Point?    @relation(fields: [pointId], references: [id], onDelete: SetNull)
+}
+
+model ShowcaseSite {
+  id              String   @id @default(uuid())
+  authorId        String
+  slug            String   @unique
+  title           String
+  description     String   @default("")
+  theme           String   @default("light")
+  heroImage       String?
+  published       Boolean  @default(false)
+  constructorJson String?
+  publishedJson   String?
+  createdAt       DateTime @default(now())
+
+  author User @relation(fields: [authorId], references: [id])
+}

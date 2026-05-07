@@ -1,0 +1,16 @@
+{
+  "name": "excursion-constructor",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "build": "npm run db:generate --workspace=server && npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=client",
+    "deploy:start": "npm run db:push --workspace=server && npm run db:seed --workspace=server && node server/dist/index.js"
+  }
+}
