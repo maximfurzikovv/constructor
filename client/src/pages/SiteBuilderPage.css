@@ -384,6 +384,8 @@
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   gap: 10px;
+  min-height: 56px;
+  overflow: hidden;
 }
 
 .preview-page-tabs {
@@ -392,9 +394,15 @@
   flex: 1;
   min-width: 0;
   overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .preview-page-tab {
+  flex: 0 0 auto;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   padding: 6px 14px;
   background: none;
   border: none;
@@ -436,6 +444,7 @@
   justify-content: space-between;
   padding: 14px 24px;
   border-bottom: 1px solid #e2e8f0;
+  gap: 18px;
 }
 
 .preview-site-header.dark {
@@ -452,15 +461,46 @@
 }
 
 .preview-site-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-size: 15px;
   font-weight: 600;
+  min-width: 0;
 }
 
 .preview-site-nav {
   display: flex;
-  gap: 16px;
+  align-items: center;
   font-size: 13px;
   color: var(--color-text-secondary);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.preview-site-header.nav-left .preview-site-nav {
+  margin-left: 24px;
+  margin-right: auto;
+}
+
+.preview-site-header.nav-center .preview-site-nav {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.preview-site-nav.nav-style-pills span {
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.preview-site-nav.nav-style-underline span {
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+}
+
+.preview-site-nav.nav-style-underline .active-nav {
+  border-bottom-color: currentColor;
 }
 
 .preview-site-nav .active-nav {
@@ -823,10 +863,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
+  min-width: max-content;
 }
 
 .viewport-switcher {
   display: flex;
+  flex: 0 0 auto;
   padding: 2px;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
@@ -851,6 +894,18 @@
 
 .status-msg {
   font-size: 12px;
+  color: var(--color-text-secondary);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
   color: var(--color-text-secondary);
 }
 

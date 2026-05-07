@@ -81,24 +81,29 @@ function ConstructorSite({ site, constructorData, slug }: { site: any; construct
         fontFamily,
         '--sc-primary': theme.primaryColor || '#2563eb',
         '--sc-radius': `${theme.borderRadius || '8'}px`,
+        '--sc-header-bg': theme.headerBg || '#ffffff',
+        '--sc-header-color': theme.headerTextColor || '#0f172a',
+        '--sc-header-gap': `${theme.headerNavGap || 16}px`,
       } as React.CSSProperties}
     >
-      <div className={`sc-header ${theme.headerStyle === 'dark' ? 'dark' : ''}`}>
+      <div className={`sc-header ${theme.headerStyle === 'dark' ? 'dark' : ''} nav-${theme.headerNavAlign || 'right'}`}>
         <span className="sc-header-logo">
           {theme.logoImage ? <img src={theme.logoImage} alt="" className="sc-logo-img" /> : null}
           {theme.logoText || site.title}
         </span>
-        <div className="sc-header-nav">
-          {constructorData.pages.map((p: any) => (
-            <button
-              key={p.id}
-              className={`sc-nav-link ${activePageId === p.id ? 'active' : ''}`}
-              onClick={() => setActivePageId(p.id)}
-            >
-              {p.title}
-            </button>
-          ))}
-        </div>
+        {theme.headerNavVisible !== false && (
+          <div className={`sc-header-nav nav-style-${theme.headerNavStyle || 'links'}`}>
+            {constructorData.pages.map((p: any) => (
+              <button
+                key={p.id}
+                className={`sc-nav-link ${activePageId === p.id ? 'active' : ''}`}
+                onClick={() => setActivePageId(p.id)}
+              >
+                {p.title}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {activePage.sections

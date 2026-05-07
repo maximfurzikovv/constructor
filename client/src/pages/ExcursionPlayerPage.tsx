@@ -66,8 +66,11 @@ export default function ExcursionPlayerPage() {
   const [excursion, setExcursion] = useState<Excursion | null>(null);
   const [currentPointIndex, setCurrentPointIndex] = useState(-1);
   const [sheetOpen, setSheetOpen] = useState(true);
+  const [sheetHeight, setSheetHeight] = useState(42);
+  const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [geoEnabled, setGeoEnabled] = useState(true);
   const [following, setFollowing] = useState(true);
   const [autoActivate, setAutoActivate] = useState(true);
   const watchIdRef = useRef<number | null>(null);
@@ -100,8 +103,9 @@ export default function ExcursionPlayerPage() {
           ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
         );
         const routedDistance = data.routes?.[0]?.distance || routeDistance(geo);
-        const tooLong = directDistance > 0 && routedDistance > Math.max(directDistance * 3.2, directDistance + 900);
-        return tooLong ? direct : geo;
+        const tooLong = directDistance > 0 && routedDistance > Math.max(directDistance * 1.6, directDistance + 220);
+        const tooShortForRouting = directDistance < 180;
+        return tooLong || tooShortForRouting ? direct : geo;
       } catch {
         return direct;
       }
@@ -121,6 +125,15 @@ export default function ExcursionPlayerPage() {
 
   // Start watching geolocation
   useEffect(() => {
+    if (!geoEnabled) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setFollowing(false);
+      return;
+    }
+
     if (!navigator.geolocation) {
       setGeoError('Геолокация не поддерживается браузером');
       return;
@@ -142,9 +155,10 @@ export default function ExcursionPlayerPage() {
     return () => {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
     };
-  }, []);
+  }, [geoEnabled]);
 
   // Auto-activate points based on radius
   useEffect(() => {
@@ -195,7 +209,26 @@ export default function ExcursionPlayerPage() {
   const goToPoint = (index: number) => {
     setCurrentPointIndex(index);
     setSheetOpen(true);
+    setSheetHeight((height) => Math.max(height, 42));
     setLightboxIndex(null);
+  };
+
+  const finishSheetDrag = () => {
+    dragRef.current = null;
+    setSheetHeight((height) => {
+      const next = height < 18 ? 6 : height > 50 ? 62 : 42;
+      setSheetOpen(next > 12);
+      return next;
+    });
+  };
+
+  const updateSheetDrag = (clientY: number) => {
+    if (!dragRef.current) return;
+    const delta = dragRef.current.startY - clientY;
+    const next = dragRef.current.startHeight + (delta / window.innerHeight) * 100;
+    const clamped = Math.max(6, Math.min(72, next));
+    setSheetHeight(clamped);
+    setSheetOpen(clamped > 12);
   };
 
   // Route from user to first point — straight dashed line
@@ -281,10 +314,19 @@ export default function ExcursionPlayerPage() {
       </div>
 
       {/* Bottom sheet */}
-      <div className={`player-sheet ${sheetOpen ? 'open' : 'collapsed'}`}>
+      <div
+        className={`player-sheet ${sheetOpen ? 'open' : 'collapsed'}`}
+        style={{ height: `${sheetHeight}vh` }}
+      >
         <div
           className="sheet-handle"
-          onClick={() => setSheetOpen(!sheetOpen)}
+          onPointerDown={(event) => {
+            dragRef.current = { startY: event.clientY, startHeight: sheetHeight };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => updateSheetDrag(event.clientY)}
+          onPointerUp={finishSheetDrag}
+          onPointerCancel={finishSheetDrag}
         >
           <div className="sheet-handle-bar" />
         </div>
@@ -376,15 +418,31 @@ export default function ExcursionPlayerPage() {
               <Button
                 variant={following ? 'primary' : 'secondary'}
                 size="sm"
-                onClick={() => setFollowing(!following)}
+                onClick={() => {
+                  if (!geoEnabled) {
+                    setGeoEnabled(true);
+                    setFollowing(true);
+                  } else {
+                    setFollowing(!following);
+                  }
+                }}
                 style={{ width: '100%' }}
               >
                 {following ? '📍 Слежение включено' : '📍 Включить слежение'}
               </Button>
               <Button
-                variant={autoActivate ? 'primary' : 'secondary'}
+                variant={geoEnabled ? 'primary' : 'secondary'}
                 size="sm"
-                onClick={() => setAutoActivate(!autoActivate)}
+                onClick={() => {
+                  setGeoEnabled((enabled) => !enabled);
+                  if (geoEnabled) {
+                    setAutoActivate(false);
+                    setFollowing(false);
+                  } else {
+                    setAutoActivate(true);
+                    setFollowing(true);
+                  }
+                }}
                 style={{ width: '100%', marginTop: 8 }}
               >
                 {autoActivate ? '🎯 Автоактивация включена' : '🎯 Включить автоактивацию'}

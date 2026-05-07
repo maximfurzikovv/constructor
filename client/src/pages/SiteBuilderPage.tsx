@@ -76,6 +76,12 @@ interface ThemeConfig {
   fontFamily: string;
   borderRadius: string;
   headerStyle: 'light' | 'dark';
+  headerBg: string;
+  headerTextColor: string;
+  headerNavAlign: 'left' | 'center' | 'right';
+  headerNavStyle: 'links' | 'pills' | 'underline';
+  headerNavVisible: boolean;
+  headerNavGap: string;
   logoText: string;
   logoImage: string;
 }
@@ -97,6 +103,12 @@ const defaultTheme: ThemeConfig = {
   fontFamily: 'system',
   borderRadius: '8',
   headerStyle: 'light',
+  headerBg: '#ffffff',
+  headerTextColor: '#0f172a',
+  headerNavAlign: 'right',
+  headerNavStyle: 'links',
+  headerNavVisible: true,
+  headerNavGap: '16',
   logoText: '',
   logoImage: '',
 };
@@ -957,7 +969,7 @@ export default function SiteBuilderPage() {
 
         {tab === 'theme' && (
           <div className="constructor-panel">
-            <ThemeEditor theme={theme} setTheme={setTheme} siteTitle={site.title} uploadSingleImage={uploadSingleImage} />
+            <GeneralThemeEditor theme={theme} setTheme={setTheme} />
           </div>
         )}
       </div>
@@ -1001,14 +1013,22 @@ export default function SiteBuilderPage() {
 
         <div className={`preview-frame viewport-${viewport}`} style={{ fontFamily: getFontFamily(theme.fontFamily), '--preview-primary': theme.primaryColor, '--preview-radius': `${theme.borderRadius}px` } as React.CSSProperties}>
           <div className={`preview-block-header ${selection?.type === 'header' ? 'selected' : ''}`} onClick={() => setSelection({ type: 'header' })}>
-            <div className={`preview-site-header ${theme.headerStyle === 'dark' ? 'dark' : ''}`}>
+            <div
+              className={`preview-site-header ${theme.headerStyle === 'dark' ? 'dark' : ''} nav-${theme.headerNavAlign}`}
+              style={{ background: theme.headerBg, color: theme.headerTextColor } as React.CSSProperties}
+            >
               <span className="preview-site-logo">
                 {theme.logoImage && <img src={theme.logoImage} alt="" className="preview-logo-img" />}
                 {theme.logoText || site.title}
               </span>
-              <div className="preview-site-nav">
-                {pages.map((page) => <span key={page.id} className={page.id === activePageId ? 'active-nav' : ''}>{page.title}</span>)}
-              </div>
+              {theme.headerNavVisible && (
+                <div
+                  className={`preview-site-nav nav-style-${theme.headerNavStyle}`}
+                  style={{ gap: `${theme.headerNavGap}px` } as React.CSSProperties}
+                >
+                  {pages.map((page) => <span key={page.id} className={page.id === activePageId ? 'active-nav' : ''}>{page.title}</span>)}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1249,6 +1269,58 @@ function ThemeEditor({ theme, setTheme, siteTitle, uploadSingleImage }: { theme:
   );
 }
 
+function GeneralThemeEditor({ theme, setTheme }: { theme: ThemeConfig; setTheme: (theme: ThemeConfig) => void }) {
+  return (
+    <div className="theme-form">
+      <p className="panel-label">Общие настройки</p>
+      <ColorField label="Основной цвет" value={theme.primaryColor} onChange={(primaryColor) => setTheme({ ...theme, primaryColor })} />
+      <div className="theme-field">
+        <label>Шрифт</label>
+        <select className="theme-select" value={theme.fontFamily} onChange={(event) => setTheme({ ...theme, fontFamily: event.target.value })}>
+          <option value="system">Системный</option>
+          <option value="serif">Serif</option>
+          <option value="mono">Monospace</option>
+        </select>
+      </div>
+      <NumberField label="Скругление по умолчанию" value={Number(theme.borderRadius)} onChange={(borderRadius) => setTheme({ ...theme, borderRadius: String(borderRadius) })} min={0} max={32} />
+    </div>
+  );
+}
+
+function HeaderEditor({ theme, setTheme, siteTitle, uploadSingleImage }: { theme: ThemeConfig; setTheme: (theme: ThemeConfig) => void; siteTitle: string; uploadSingleImage: (callback: (url: string) => void) => void }) {
+  return (
+    <div className="theme-form">
+      <p className="panel-label">Оформление шапки</p>
+      <ColorField label="Фон шапки" value={theme.headerBg} onChange={(headerBg) => setTheme({ ...theme, headerBg })} />
+      <ColorField label="Цвет текста" value={theme.headerTextColor} onChange={(headerTextColor) => setTheme({ ...theme, headerTextColor })} />
+      <Input label="Текст логотипа" value={theme.logoText} placeholder={siteTitle} onChange={(event) => setTheme({ ...theme, logoText: event.target.value })} />
+      <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((logoImage) => setTheme({ ...theme, logoImage }))}>Загрузить логотип</Button>
+      {theme.logoImage && <Button variant="ghost" size="sm" onClick={() => setTheme({ ...theme, logoImage: '' })}>Убрать логотип</Button>}
+      <label className="check-field">
+        <input type="checkbox" checked={theme.headerNavVisible} onChange={(event) => setTheme({ ...theme, headerNavVisible: event.target.checked })} />
+        Показывать ссылки
+      </label>
+      <div className="theme-field">
+        <label>Расположение ссылок</label>
+        <select className="theme-select" value={theme.headerNavAlign} onChange={(event) => setTheme({ ...theme, headerNavAlign: event.target.value as ThemeConfig['headerNavAlign'] })}>
+          <option value="left">Слева</option>
+          <option value="center">По центру</option>
+          <option value="right">Справа</option>
+        </select>
+      </div>
+      <div className="theme-field">
+        <label>Вид ссылок</label>
+        <select className="theme-select" value={theme.headerNavStyle} onChange={(event) => setTheme({ ...theme, headerNavStyle: event.target.value as ThemeConfig['headerNavStyle'] })}>
+          <option value="links">Текст</option>
+          <option value="pills">Кнопки</option>
+          <option value="underline">Подчеркивание</option>
+        </select>
+      </div>
+      <NumberField label="Расстояние между ссылками" value={Number(theme.headerNavGap)} onChange={(headerNavGap) => setTheme({ ...theme, headerNavGap: String(headerNavGap) })} min={0} max={48} />
+    </div>
+  );
+}
+
 function PropertiesPanel(props: {
   selected: BuilderSelected | null;
   theme: ThemeConfig;
@@ -1276,7 +1348,7 @@ function PropertiesPanel(props: {
         <>
           <div className="props-header"><span className="props-icon">≡</span><h3>Шапка сайта</h3></div>
           <div className="props-body">
-            <ThemeEditor theme={props.theme} setTheme={props.setTheme} siteTitle={props.siteTitle} uploadSingleImage={props.uploadSingleImage} />
+            <HeaderEditor theme={props.theme} setTheme={props.setTheme} siteTitle={props.siteTitle} uploadSingleImage={props.uploadSingleImage} />
           </div>
         </>
       )}
