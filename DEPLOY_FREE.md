@@ -18,6 +18,14 @@
 6. Убедитесь, что `NODE_ENV` равен `production`.
 7. Запустите Deploy.
 
+Если настройки вводятся вручную:
+
+```text
+Build Command: npm install --include=dev && npm run build
+Start Command: npm run deploy:start
+Health Check Path: /api/health
+```
+
 ## 3. Проверка
 
 После деплоя Render выдаст ссылку вида:
