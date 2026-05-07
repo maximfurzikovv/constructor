@@ -26,6 +26,13 @@ Start Command: npm run deploy:start
 Health Check Path: /api/health
 ```
 
+Базу нужно подготовить один раз локально:
+
+```bash
+npm run db:push --workspace=server
+npm run db:seed --workspace=server
+```
+
 ## 3. Проверка
 
 После деплоя Render выдаст ссылку вида:
