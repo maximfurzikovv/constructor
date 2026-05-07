@@ -3,6 +3,17 @@ import prisma from '../db';
 
 const router = Router();
 
+function buildRouteJson(points: Array<{ lng: number; lat: number }>) {
+  return JSON.stringify({
+    type: 'LineString',
+    coordinates: points.map((point) => [point.lng, point.lat]),
+  });
+}
+
+function isPersistedId(id?: string) {
+  return Boolean(id && !id.startsWith('temp-'));
+}
+
 router.get('/route/:routeId', async (req, res) => {
   const points = await prisma.point.findMany({
     where: { routeId: req.params.routeId },
@@ -14,110 +25,110 @@ router.get('/route/:routeId', async (req, res) => {
 
 router.post('/', async (req, res) => {
   const route = await prisma.route.findUnique({ where: { id: req.body.routeId } });
-  if (!route) return res.status(404).json({ error: 'Маршрут не найден' });
+  if (!route) return res.status(404).json({ error: 'Route not found' });
 
   const maxOrder = await prisma.point.count({ where: { routeId: req.body.routeId } });
 
   const point = await prisma.point.create({
     data: {
       routeId: req.body.routeId,
-      title: req.body.title || 'Новая точка',
+      title: req.body.title || `Точка ${maxOrder + 1}`,
       description: req.body.description || '',
-      lat: req.body.lat,
-      lng: req.body.lng,
+      lat: Number(req.body.lat),
+      lng: Number(req.body.lng),
       order: maxOrder,
-      duration: req.body.duration || 5,
-      radius: req.body.radius || 50,
+      duration: Number(req.body.duration) || 5,
+      radius: Number(req.body.radius) || 50,
     },
   });
 
-  // Update route geometry
   const allPoints = await prisma.point.findMany({
     where: { routeId: req.body.routeId },
     orderBy: { order: 'asc' },
   });
-  const routeJson = JSON.stringify({
-    type: 'LineString',
-    coordinates: allPoints.map((p) => [p.lng, p.lat]),
+  await prisma.route.update({
+    where: { id: req.body.routeId },
+    data: { routeJson: buildRouteJson(allPoints) },
   });
-  await prisma.route.update({ where: { id: req.body.routeId }, data: { routeJson } });
 
   res.status(201).json({ data: { ...point, media: [] } });
 });
 
-// Batch sync: upsert points for a route, preserving media
 router.put('/route/:routeId/sync', async (req, res) => {
   try {
     const { routeId } = req.params;
     const points: Array<{
       id?: string;
-      title: string;
-      description: string;
-      lat: number;
-      lng: number;
-      order: number;
-      duration: number;
-      radius: number;
-    }> = req.body.points;
+      title?: string;
+      description?: string;
+      lat: number | string;
+      lng: number | string;
+      order?: number;
+      duration?: number | string;
+      radius?: number | string;
+    }> = Array.isArray(req.body.points) ? req.body.points : [];
 
     const route = await prisma.route.findUnique({ where: { id: routeId } });
-    if (!route) return res.status(404).json({ error: 'Маршрут не найден' });
+    if (!route) return res.status(404).json({ error: 'Route not found' });
 
-    // IDs of points that should remain
-    const incomingIds = points.filter((p) => p.id).map((p) => p.id!);
+    const result = await prisma.$transaction(async (tx) => {
+      const incomingIds = points.filter((point) => isPersistedId(point.id)).map((point) => point.id!);
 
-    // Delete points that are no longer in the list
-    await prisma.point.deleteMany({
-      where: { routeId, id: { notIn: incomingIds } },
-    });
+      await tx.point.deleteMany({
+        where: { routeId, id: { notIn: incomingIds } },
+      });
 
-    // Upsert each point: update existing, create new
-    const result = [];
-    for (let i = 0; i < points.length; i++) {
-      const p = points[i];
-      let point;
-      if (p.id) {
-        point = await prisma.point.update({
-          where: { id: p.id },
-          data: {
-            title: p.title || `Точка ${i + 1}`,
-            description: p.description || '',
-            lat: p.lat,
-            lng: p.lng,
-            order: i,
-            duration: p.duration || 5,
-            radius: p.radius || 50,
-          },
-          include: { media: true },
-        });
-      } else {
-        point = await prisma.point.create({
-          data: {
-            routeId,
-            title: p.title || `Точка ${i + 1}`,
-            description: p.description || '',
-            lat: p.lat,
-            lng: p.lng,
-            order: i,
-            duration: p.duration || 5,
-            radius: p.radius || 50,
-          },
-          include: { media: true },
-        });
+      const synced = [];
+      for (let index = 0; index < points.length; index += 1) {
+        const point = points[index];
+        const data = {
+          title: point.title || `Точка ${index + 1}`,
+          description: point.description || '',
+          lat: Number(point.lat),
+          lng: Number(point.lng),
+          order: index,
+          duration: Number(point.duration) || 5,
+          radius: Number(point.radius) || 50,
+        };
+
+        let savedPoint = null;
+        if (isPersistedId(point.id)) {
+          const existing = await tx.point.findFirst({
+            where: { id: point.id, routeId },
+            select: { id: true },
+          });
+
+          if (existing) {
+            savedPoint = await tx.point.update({
+              where: { id: point.id },
+              data,
+              include: { media: true },
+            });
+          }
+        }
+
+        if (!savedPoint) {
+          savedPoint = await tx.point.create({
+            data: { ...data, routeId },
+            include: { media: true },
+          });
+        }
+
+        synced.push(savedPoint);
       }
-      result.push(point);
-    }
 
-    // Rebuild route geometry
-    const routeJson = JSON.stringify({
-      type: 'LineString',
-      coordinates: result.map((p) => [p.lng, p.lat]),
+      await tx.route.update({
+        where: { id: routeId },
+        data: { routeJson: buildRouteJson(synced) },
+      });
+
+      return synced;
     });
-    await prisma.route.update({ where: { id: routeId }, data: { routeJson } });
 
     res.json({ data: result });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message || 'Ошибка синхронизации' });
+  } catch (error: any) {
+    console.error('Point sync failed:', error);
+    res.status(500).json({ error: error.message || 'Point sync failed' });
   }
 });
 
@@ -129,38 +140,36 @@ router.put('/:id', async (req, res) => {
     });
     res.json({ data: point });
   } catch {
-    res.status(404).json({ error: 'Точка не найдена' });
+    res.status(404).json({ error: 'Point not found' });
   }
 });
 
 router.delete('/:id', async (req, res) => {
   try {
     const point = await prisma.point.findUnique({ where: { id: req.params.id } });
-    if (!point) return res.status(404).json({ error: 'Точка не найдена' });
+    if (!point) return res.status(404).json({ error: 'Point not found' });
 
     await prisma.point.delete({ where: { id: req.params.id } });
 
-    // Reorder remaining points
     const remaining = await prisma.point.findMany({
       where: { routeId: point.routeId },
       orderBy: { order: 'asc' },
     });
-    for (let i = 0; i < remaining.length; i++) {
-      if (remaining[i].order !== i) {
-        await prisma.point.update({ where: { id: remaining[i].id }, data: { order: i } });
+
+    for (let index = 0; index < remaining.length; index += 1) {
+      if (remaining[index].order !== index) {
+        await prisma.point.update({ where: { id: remaining[index].id }, data: { order: index } });
       }
     }
 
-    // Rebuild route geometry
-    const routeJson = JSON.stringify({
-      type: 'LineString',
-      coordinates: remaining.map((p) => [p.lng, p.lat]),
+    await prisma.route.update({
+      where: { id: point.routeId },
+      data: { routeJson: buildRouteJson(remaining) },
     });
-    await prisma.route.update({ where: { id: point.routeId }, data: { routeJson } });
 
     res.json({ data: { success: true } });
   } catch {
-    res.status(404).json({ error: 'Точка не найдена' });
+    res.status(404).json({ error: 'Point not found' });
   }
 });
 
