@@ -70,6 +70,22 @@ router.post('/', async (req, res) => {
   res.status(201).json({ data: item });
 });
 
+router.put('/:id', async (req, res) => {
+  try {
+    const item = await prisma.media.update({
+      where: { id: req.params.id },
+      data: {
+        title: req.body.title,
+        description: req.body.description,
+        pointId: req.body.pointId === undefined ? undefined : req.body.pointId || null,
+      },
+    });
+    res.json({ data: item });
+  } catch {
+    res.status(500).json({ error: 'Failed to update media' });
+  }
+});
+
 router.delete('/:id', async (req, res) => {
   try {
     const item = await prisma.media.findUnique({ where: { id: req.params.id } });

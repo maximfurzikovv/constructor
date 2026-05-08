@@ -10,16 +10,17 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     },
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Ошибка сервера' }));
     throw new Error(err.error || `HTTP ${res.status}`);
   }
+
   const json = await res.json();
   return json.data;
 }
 
 export const api = {
-  // Auth
   login: (email: string, password: string) =>
     request('/auth/login', {
       method: 'POST',
@@ -32,7 +33,6 @@ export const api = {
     }),
   me: () => request('/auth/me'),
 
-  // Excursions
   getExcursions: () => request('/excursions'),
   getExcursion: (id: string, published?: boolean) =>
     request(`/excursions/${id}${published ? '?published=true' : ''}`),
@@ -46,7 +46,6 @@ export const api = {
   deleteExcursion: (id: string) =>
     request(`/excursions/${id}`, { method: 'DELETE' }),
 
-  // Points
   getPoints: (routeId: string) => request(`/points/route/${routeId}`),
   createPoint: (data: any) =>
     request('/points', { method: 'POST', body: JSON.stringify(data) }),
@@ -60,7 +59,6 @@ export const api = {
       body: JSON.stringify({ points }),
     }),
 
-  // Media
   getMedia: (excursionId?: string) =>
     request(`/media${excursionId ? `?excursionId=${excursionId}` : ''}`),
   uploadMedia: async (file: File, excursionId?: string, pointId?: string) => {
@@ -68,6 +66,7 @@ export const api = {
     formData.append('file', file);
     if (excursionId) formData.append('excursionId', excursionId);
     if (pointId) formData.append('pointId', pointId);
+
     const token = localStorage.getItem('token');
     const res = await fetch(`${BASE_URL}/media/upload`, {
       method: 'POST',
@@ -78,10 +77,11 @@ export const api = {
     const json = await res.json();
     return json.data;
   },
+  updateMedia: (id: string, data: any) =>
+    request(`/media/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteMedia: (id: string) =>
     request(`/media/${id}`, { method: 'DELETE' }),
 
-  // Showcase
   getShowcase: (slug: string) => request(`/showcase/${slug}`),
   saveConstructor: (data: any) =>
     request('/showcase/constructor', { method: 'PUT', body: JSON.stringify(data) }),

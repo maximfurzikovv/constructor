@@ -4,10 +4,10 @@ import './AdminLayout.css';
 
 const navItems = [
   { to: '/admin', icon: '▥', label: 'Дашборд', end: true },
-  { to: '/admin/excursions', icon: '🗺', label: 'Экскурсии' },
+  { to: '/admin/excursions', icon: '⌁', label: 'Экскурсии' },
   { to: '/admin/media', icon: '▣', label: 'Медиатека' },
   { to: '/admin/showcase', icon: '◎', label: 'Конструктор сайта' },
-  { to: '/admin/publications', icon: '▮', label: 'Публикации' },
+  { to: '/admin/publications', icon: '▰', label: 'Публикации' },
 ];
 
 export default function AdminLayout() {
@@ -43,9 +43,7 @@ export default function AdminLayout() {
                 key={item.to}
                 to={item.to}
                 end={item.end}
-                className={({ isActive }) =>
-                  `nav-item ${isActive ? 'active' : ''}`
-                }
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
               >
                 <span className="nav-icon">{item.icon}</span>
                 {item.label}
@@ -54,7 +52,7 @@ export default function AdminLayout() {
           </nav>
           <div className="sidebar-footer">
             <div className="user-info">
-              <span className="user-name">{user.name || 'Гость'}</span>
+              <span className="user-name">{user.name || 'Максим Фурзиков'}</span>
             </div>
             <button className="logout-btn" onClick={handleLogout}>
               Выйти

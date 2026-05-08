@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import { api } from '../api/client';
 import Button from '../components/ui/Button';
@@ -120,79 +120,78 @@ const defaultTheme: ThemeConfig = {
 };
 
 const sectionLayouts: Record<SectionLayout, { label: string; widths: number[] }> = {
-  '1': { label: '1 РєРѕР»РѕРЅРєР°', widths: [100] },
-  '2': { label: '2 РєРѕР»РѕРЅРєРё', widths: [50, 50] },
-  '3': { label: '3 РєРѕР»РѕРЅРєРё', widths: [33, 34, 33] },
-  '4': { label: '4 РєРѕР»РѕРЅРєРё', widths: [25, 25, 25, 25] },
-  'asym-left': { label: 'РђСЃРёРјРјРµС‚СЂРёСЏ 70/30', widths: [70, 30] },
-  'asym-right': { label: 'РђСЃРёРјРјРµС‚СЂРёСЏ 30/70', widths: [30, 70] },
+  '1': { label: '1 колонка', widths: [100] },
+  '2': { label: '2 колонки', widths: [50, 50] },
+  '3': { label: '3 колонки', widths: [33, 34, 33] },
+  '4': { label: '4 колонки', widths: [25, 25, 25, 25] },
+  'asym-left': { label: 'Асимметрия 70/30', widths: [70, 30] },
+  'asym-right': { label: 'Асимметрия 30/70', widths: [30, 70] },
 };
 
 const elementLabels: Record<ElementType, { label: string; icon: string }> = {
-  heading: { label: 'Р—Р°РіРѕР»РѕРІРѕРє', icon: 'H' },
-  text: { label: 'РўРµРєСЃС‚', icon: 'T' },
-  button: { label: 'РљРЅРѕРїРєР°', icon: '>' },
-  backButton: { label: 'РќР°Р·Р°Рґ', icon: '<' },
-  image: { label: 'РР·РѕР±СЂР°Р¶РµРЅРёРµ', icon: 'в–Ў' },
-  gallery: { label: 'Р“Р°Р»РµСЂРµСЏ', icon: 'в–¦' },
-  video: { label: 'Р’РёРґРµРѕ', icon: 'в–¶' },
-  divider: { label: 'Р›РёРЅРёСЏ', icon: 'в”Ђ' },
-  spacer: { label: 'РћС‚СЃС‚СѓРї', icon: 'в†•' },
-  box: { label: 'Р‘РѕРєСЃ', icon: 'в–Ј' },
-  list: { label: 'РЎРїРёСЃРѕРє', icon: 'в‰Ў' },
-  social: { label: 'РЎРѕС†СЃРµС‚Рё', icon: '#' },
-  menu: { label: 'РњРµРЅСЋ/СЏРєРѕСЂСЊ', icon: 'вЊЃ' },
-  form: { label: 'Р¤РѕСЂРјР°', icon: 'вњЋ' },
-  map: { label: 'РљР°СЂС‚Р°', icon: 'вЊ–' },
-  embed: { label: 'РљРѕРґ', icon: '</>' },
-  tours: { label: 'Р­РєСЃРєСѓСЂСЃРёРё', icon: 'в—†' },
-  contacts: { label: 'РљРѕРЅС‚Р°РєС‚С‹', icon: '@' },
+  heading: { label: 'Заголовок', icon: 'H' },
+  text: { label: 'Текст', icon: 'T' },
+  button: { label: 'Кнопка', icon: '>' },
+  backButton: { label: 'Назад', icon: '<' },
+  image: { label: 'Изображение', icon: '▣' },
+  gallery: { label: 'Галерея', icon: '▦' },
+  video: { label: 'Видео', icon: '▶' },
+  divider: { label: 'Линия', icon: '─' },
+  spacer: { label: 'Отступ', icon: '↕' },
+  box: { label: 'Бокс', icon: '▤' },
+  list: { label: 'Список', icon: '≡' },
+  social: { label: 'Соцсети', icon: '#' },
+  menu: { label: 'Меню/якорь', icon: '☰' },
+  form: { label: 'Форма', icon: '✎' },
+  map: { label: 'Карта', icon: '⌖' },
+  embed: { label: 'Код', icon: '</>' },
+  tours: { label: 'Экскурсии', icon: '◆' },
+  contacts: { label: 'Контакты', icon: '@' },
 };
 
 const elementGroups: { title: string; items: ElementType[] }[] = [
-  { title: 'Р‘Р°Р·РѕРІС‹Рµ', items: ['heading', 'text', 'button', 'backButton', 'divider', 'spacer', 'box'] },
-  { title: 'РњРµРґРёР°', items: ['image', 'gallery', 'video'] },
-  { title: 'РЎС‚СЂСѓРєС‚СѓСЂР°', items: ['menu', 'list', 'embed'] },
-  { title: 'Р‘РёР·РЅРµСЃ', items: ['tours', 'contacts', 'form', 'map', 'social'] },
+  { title: 'Базовые', items: ['heading', 'text', 'button', 'backButton', 'divider', 'spacer', 'box'] },
+  { title: 'Медиа', items: ['image', 'gallery', 'video'] },
+  { title: 'Структура', items: ['menu', 'list', 'embed'] },
+  { title: 'Бизнес', items: ['tours', 'contacts', 'form', 'map', 'social'] },
 ];
 
 const sectionTemplateGroups = [
-  { title: 'РџСЂРёРІРµС‚СЃС‚РІРёРµ', items: ['hero-split', 'hero-center'] },
-  { title: 'Рћ РЅР°СЃ', items: ['about-photo', 'features'] },
-  { title: 'РљРѕРЅС‚Р°РєС‚С‹', items: ['contacts-strip', 'contacts-form'] },
-  { title: 'РџСЂРѕРґР°Р¶Рё', items: ['services', 'reviews', 'cta'] },
+  { title: 'Приветствие', items: ['hero-split', 'hero-center'] },
+  { title: 'О нас', items: ['about-photo', 'features'] },
+  { title: 'Контакты', items: ['contacts-strip', 'contacts-form'] },
+  { title: 'Продажи', items: ['services', 'reviews', 'cta'] },
 ] as const;
 
 function templateLabel(template: string) {
   const labels: Record<string, string> = {
-    'hero-split': 'Hero СЃ РёР·РѕР±СЂР°Р¶РµРЅРёРµРј',
-    'hero-center': 'Р¦РµРЅС‚СЂР°Р»СЊРЅС‹Р№ hero',
-    'about-photo': 'Рћ РЅР°СЃ СЃ С„РѕС‚Рѕ',
-    features: 'РџСЂРµРёРјСѓС‰РµСЃС‚РІР°',
-    'contacts-strip': 'РљРѕРЅС‚Р°РєС‚С‹ РїРѕР»РѕСЃРѕР№',
-    'contacts-form': 'РљРѕРЅС‚Р°РєС‚С‹ + С„РѕСЂРјР°',
-    services: 'РЈСЃР»СѓРіРё',
-    reviews: 'РћС‚Р·С‹РІС‹',
-    cta: 'РџСЂРёР·С‹РІ Рє РґРµР№СЃС‚РІРёСЋ',
+    'hero-split': 'Hero с изображением',
+    'hero-center': 'Центральный hero',
+    'about-photo': 'О нас с фото',
+    features: 'Преимущества',
+    'contacts-strip': 'Контакты полосой',
+    'contacts-form': 'Контакты + форма',
+    services: 'Услуги',
+    reviews: 'Отзывы',
+    cta: 'Призыв к действию',
   };
   return labels[template] || template;
 }
 
 function templateDescription(template: string) {
   const descriptions: Record<string, string> = {
-    'hero-split': 'Р—Р°РіРѕР»РѕРІРѕРє, С‚РµРєСЃС‚, CTA Рё РєСЂСѓРїРЅРѕРµ РёР·РѕР±СЂР°Р¶РµРЅРёРµ',
-    'hero-center': 'Р¦РµРЅС‚СЂР°Р»СЊРЅС‹Р№ РїРµСЂРІС‹Р№ СЌРєСЂР°РЅ РґР»СЏ РїСЂРѕРјРѕ',
-    'about-photo': 'Р¤РѕС‚Рѕ, РѕРїРёСЃР°РЅРёРµ Рё СЃРїРёСЃРѕРє РїСЂРµРёРјСѓС‰РµСЃС‚РІ',
-    features: 'РўСЂРё РєР°СЂС‚РѕС‡РєРё РїСЂРµРёРјСѓС‰РµСЃС‚РІ РёР»Рё С„Р°РєС‚РѕРІ',
-    'contacts-strip': 'РљРѕСЂРѕС‚РєР°СЏ РєРѕРЅС‚Р°РєС‚РЅР°СЏ РїРѕР»РѕСЃР°',
-    'contacts-form': 'РљРѕРЅС‚Р°РєС‚С‹ СЂСЏРґРѕРј СЃ С„РѕСЂРјРѕР№ Р·Р°СЏРІРєРё',
-    services: 'РўСЂРё СѓСЃР»СѓРіРё СЃ РѕРїРёСЃР°РЅРёСЏРјРё',
-    reviews: 'РљР°СЂС‚РѕС‡РєРё РѕС‚Р·С‹РІРѕРІ СЃ Р°РєРєСѓСЂР°С‚РЅРѕР№ СЃРµС‚РєРѕР№',
-    cta: 'Р¤РёРЅР°Р»СЊРЅС‹Р№ РїСЂРёР·С‹РІ Рє РґРµР№СЃС‚РІРёСЋ',
+    'hero-split': 'Заголовок, текст, CTA и крупное изображение',
+    'hero-center': 'Центральный первый экран для промо',
+    'about-photo': 'Фото, описание и список преимуществ',
+    features: 'Три карточки преимуществ или фактов',
+    'contacts-strip': 'Короткая контактная полоса',
+    'contacts-form': 'Контакты рядом с формой заявки',
+    services: 'Три услуги с описаниями',
+    reviews: 'Карточки отзывов с аккуратной сеткой',
+    cta: 'Финальный призыв к действию',
   };
-  return descriptions[template] || 'Р“РѕС‚РѕРІР°СЏ СЃРµРєС†РёСЏ';
+  return descriptions[template] || 'Готовая секция';
 }
-
 function getMapEmbedUrl(data: Record<string, any>) {
   if (data.embedUrl) return data.embedUrl;
   const lat = Number(data.lat) || 59.939;
