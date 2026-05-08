@@ -25,11 +25,15 @@ function pointMarkerIcon(order: number, state: 'upcoming' | 'active' | 'visited'
   });
 }
 
-function MapFollower({ position }: { position: [number, number] }) {
+function MapFollower({ position, navigatorMode }: { position: [number, number]; navigatorMode: boolean }) {
   const map = useMap();
   useEffect(() => {
-    map.panTo(position, { animate: true, duration: 0.5 });
-  }, [map, position]);
+    if (navigatorMode) {
+      map.setView(position, Math.max(map.getZoom(), 17), { animate: true, duration: 0.5 });
+    } else {
+      map.panTo(position, { animate: true, duration: 0.5 });
+    }
+  }, [map, position, navigatorMode]);
   return null;
 }
 
@@ -71,6 +75,7 @@ export default function ExcursionPlayerPage() {
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [geoEnabled, setGeoEnabled] = useState(true);
+  const [navigatorMode, setNavigatorMode] = useState(false);
   const [following, setFollowing] = useState(true);
   const [autoActivate, setAutoActivate] = useState(true);
   const watchIdRef = useRef<number | null>(null);
@@ -245,6 +250,12 @@ export default function ExcursionPlayerPage() {
   const currentPointImages = currentPoint
     ? (currentPoint.media || []).filter((m) => m.type === 'image')
     : [];
+  const currentPointAudio = currentPoint
+    ? (currentPoint.media || []).filter((m) => m.type === 'audio')
+    : [];
+  const currentPointVideo = currentPoint
+    ? (currentPoint.media || []).filter((m) => m.type === 'video')
+    : [];
 
   return (
     <div className="player-layout">
@@ -298,7 +309,7 @@ export default function ExcursionPlayerPage() {
           {userPosition && (
             <>
               <Marker position={userPosition} icon={userIcon} />
-              {following && <MapFollower position={userPosition} />}
+              {following && <MapFollower position={userPosition} navigatorMode={navigatorMode} />}
             </>
           )}
         </MapContainer>
@@ -388,6 +399,17 @@ export default function ExcursionPlayerPage() {
                   </div>
                 )}
 
+                {(currentPointAudio.length > 0 || currentPointVideo.length > 0) && (
+                  <div className="sheet-media-stack">
+                    {currentPointAudio.map((m) => (
+                      <audio key={m.id} src={`${SERVER_URL}${m.url}`} controls />
+                    ))}
+                    {currentPointVideo.map((m) => (
+                      <video key={m.id} src={`${SERVER_URL}${m.url}`} controls />
+                    ))}
+                  </div>
+                )}
+
                 {distToNext !== null && currentPointIndex < sortedPoints.length - 1 && (
                   <p className="sheet-distance-next">
                     До следующей точки: <strong>{formatDistance(distToNext)}</strong>
@@ -433,6 +455,18 @@ export default function ExcursionPlayerPage() {
                 style={{ width: '100%' }}
               >
                 {following ? '📍 Слежение включено' : '📍 Включить слежение'}
+              </Button>
+              <Button
+                variant={navigatorMode ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => {
+                  setNavigatorMode((enabled) => !enabled);
+                  setGeoEnabled(true);
+                  setFollowing(true);
+                }}
+                style={{ width: '100%', marginTop: 8 }}
+              >
+                {navigatorMode ? 'Режим навигатора включен' : 'Включить режим навигатора'}
               </Button>
               <Button
                 variant={geoEnabled ? 'primary' : 'secondary'}

@@ -1,6 +1,8 @@
 .admin-layout {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .sidebar {
@@ -134,9 +136,16 @@
   margin-left: var(--sidebar-width);
   padding: 24px;
   min-height: 100vh;
+  min-width: 0;
+  width: calc(100vw - var(--sidebar-width));
+  max-width: calc(100vw - var(--sidebar-width));
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .sidebar-collapsed .admin-content {
   margin-left: 0;
   padding-left: 112px;
+  width: 100vw;
+  max-width: 100vw;
 }

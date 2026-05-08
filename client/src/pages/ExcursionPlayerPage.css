@@ -342,6 +342,24 @@
   opacity: 0.85;
 }
 
+.sheet-media-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+
+.sheet-media-stack audio,
+.sheet-media-stack video {
+  width: 100%;
+  border-radius: 10px;
+}
+
+.sheet-media-stack video {
+  max-height: 240px;
+  background: #0f172a;
+}
+
 /* Lightbox */
 .lightbox-overlay {
   position: fixed;

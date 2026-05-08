@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+﻿import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, Popup, Circle } from 'react-leaflet';
 import L from 'leaflet';
@@ -74,7 +74,7 @@ export default function RouteEditorPage() {
       const newPoint: Point = {
         id: nextTempId(),
         routeId: excursion.route.id,
-        title: `Точка ${points.length + 1}`,
+        title: `РўРѕС‡РєР° ${points.length + 1}`,
         description: '',
         lat,
         lng,
@@ -166,7 +166,7 @@ export default function RouteEditorPage() {
           : prev
       );
     } catch {
-      setStatusMsg('Ошибка загрузки изображения');
+      setStatusMsg('РћС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё РёР·РѕР±СЂР°Р¶РµРЅРёСЏ');
     }
     setUploadingMedia(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -195,7 +195,7 @@ export default function RouteEditorPage() {
           : prev
       );
     } catch {
-      setStatusMsg('Ошибка удаления медиа');
+      setStatusMsg('РћС€РёР±РєР° СѓРґР°Р»РµРЅРёСЏ РјРµРґРёР°');
     }
   };
 
@@ -254,10 +254,10 @@ export default function RouteEditorPage() {
       }
 
       setHasChanges(false);
-      setStatusMsg('Сохранено!');
+      setStatusMsg('РЎРѕС…СЂР°РЅРµРЅРѕ!');
       setTimeout(() => setStatusMsg(null), 3000);
     } catch {
-      setStatusMsg('Ошибка сохранения');
+      setStatusMsg('РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ');
     }
     setSaving(false);
   };
@@ -320,16 +320,16 @@ export default function RouteEditorPage() {
       }
 
       setHasChanges(false);
-      setStatusMsg('Опубликовано!');
+      setStatusMsg('РћРїСѓР±Р»РёРєРѕРІР°РЅРѕ!');
       setTimeout(() => setStatusMsg(null), 3000);
     } catch {
-      setStatusMsg('Ошибка публикации');
+      setStatusMsg('РћС€РёР±РєР° РїСѓР±Р»РёРєР°С†РёРё');
     }
     setSaving(false);
   };
 
   if (!excursion || !excursion.route) {
-    return <div className="editor-loading">Загрузка...</div>;
+    return <div className="editor-loading">Р—Р°РіСЂСѓР·РєР°...</div>;
   }
 
   const points = excursion.route.points;
@@ -345,19 +345,19 @@ export default function RouteEditorPage() {
     <div className="editor-layout">
       {/* Left: Tool Panel */}
       <div className="editor-tools">
-        <h3>Инструменты</h3>
+        <h3>РРЅСЃС‚СЂСѓРјРµРЅС‚С‹</h3>
         <Button
           variant={addMode ? 'primary' : 'secondary'}
           size="sm"
           onClick={() => setAddMode(!addMode)}
           style={{ width: '100%' }}
         >
-          {addMode ? '✓ Режим добавления' : '+ Добавить точку'}
+          {addMode ? 'вњ“ Р РµР¶РёРј РґРѕР±Р°РІР»РµРЅРёСЏ' : '+ Р”РѕР±Р°РІРёС‚СЊ С‚РѕС‡РєСѓ'}
         </Button>
 
         <div className="tools-divider" />
 
-        <h4>Точки маршрута</h4>
+        <h4>РўРѕС‡РєРё РјР°СЂС€СЂСѓС‚Р°</h4>
         <div className="stop-list">
           {sortedPoints.map((point) => (
             <div
@@ -371,7 +371,7 @@ export default function RouteEditorPage() {
           ))}
           {points.length === 0 && (
             <p className="stop-list-empty">
-              Нажмите «Добавить точку» и кликните на карту
+              РќР°Р¶РјРёС‚Рµ В«Р”РѕР±Р°РІРёС‚СЊ С‚РѕС‡РєСѓВ» Рё РєР»РёРєРЅРёС‚Рµ РЅР° РєР°СЂС‚Сѓ
             </p>
           )}
         </div>
@@ -379,9 +379,9 @@ export default function RouteEditorPage() {
         <div className="tools-divider" />
         <div className="tour-info-mini">
           <p><strong>{excursion.title}</strong></p>
-          <p>{points.length} точек | {excursion.route.duration} мин | {(excursion.route.distance / 1000).toFixed(1)} км</p>
+          <p>{points.length} С‚РѕС‡РµРє | {excursion.route.duration} РјРёРЅ | {(excursion.route.distance / 1000).toFixed(1)} РєРј</p>
           <p style={{ fontSize: 12, marginTop: 4 }}>
-            Статус: {excursion.status === 'published' ? '✅ Опубликован' : '📝 Черновик'}
+            РЎС‚Р°С‚СѓСЃ: {excursion.status === 'published' ? 'вњ… РћРїСѓР±Р»РёРєРѕРІР°РЅ' : 'рџ“ќ Р§РµСЂРЅРѕРІРёРє'}
           </p>
         </div>
 
@@ -389,7 +389,7 @@ export default function RouteEditorPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {hasChanges && (
             <span style={{ fontSize: 12, color: '#f59e0b', textAlign: 'center' }}>
-              Есть несохранённые изменения
+              Р•СЃС‚СЊ РЅРµСЃРѕС…СЂР°РЅС‘РЅРЅС‹Рµ РёР·РјРµРЅРµРЅРёСЏ
             </span>
           )}
           {statusMsg && (
@@ -398,7 +398,7 @@ export default function RouteEditorPage() {
             </span>
           )}
           <Button variant="primary" size="sm" onClick={handleSave} disabled={saving} style={{ width: '100%' }}>
-            {saving ? 'Сохранение...' : 'Сохранить'}
+            {saving ? 'РЎРѕС…СЂР°РЅРµРЅРёРµ...' : 'РЎРѕС…СЂР°РЅРёС‚СЊ'}
           </Button>
           <Button
             variant="secondary"
@@ -407,7 +407,7 @@ export default function RouteEditorPage() {
             disabled={saving}
             style={{ width: '100%' }}
           >
-            {saving ? 'Публикация...' : 'Опубликовать'}
+            {saving ? 'РџСѓР±Р»РёРєР°С†РёСЏ...' : 'РћРїСѓР±Р»РёРєРѕРІР°С‚СЊ'}
           </Button>
         </div>
       </div>
@@ -458,7 +458,7 @@ export default function RouteEditorPage() {
         </MapContainer>
 
         {addMode && (
-          <div className="map-hint">Кликните на карту, чтобы добавить точку</div>
+          <div className="map-hint">РљР»РёРєРЅРёС‚Рµ РЅР° РєР°СЂС‚Сѓ, С‡С‚РѕР±С‹ РґРѕР±Р°РІРёС‚СЊ С‚РѕС‡РєСѓ</div>
         )}
       </div>
 
@@ -466,22 +466,22 @@ export default function RouteEditorPage() {
       <div className="editor-props">
         {selectedPoint ? (
           <>
-            <h3>Свойства точки</h3>
+            <h3>РЎРІРѕР№СЃС‚РІР° С‚РѕС‡РєРё</h3>
             <div className="props-form">
               <Input
-                label="Название"
+                label="РќР°Р·РІР°РЅРёРµ"
                 value={selectedPoint.title}
                 onChange={(e) => handlePointUpdate('title', e.target.value)}
               />
               <Textarea
-                label="Описание"
+                label="РћРїРёСЃР°РЅРёРµ"
                 value={selectedPoint.description}
                 onChange={(e) =>
                   handlePointUpdate('description', e.target.value)
                 }
               />
               <Input
-                label="Время (мин)"
+                label="Р’СЂРµРјСЏ (РјРёРЅ)"
                 type="number"
                 value={selectedPoint.duration}
                 onChange={(e) =>
@@ -489,7 +489,7 @@ export default function RouteEditorPage() {
                 }
               />
               <Input
-                label="Радиус активации (м)"
+                label="Р Р°РґРёСѓСЃ Р°РєС‚РёРІР°С†РёРё (Рј)"
                 type="number"
                 value={selectedPoint.radius ?? 50}
                 onChange={(e) =>
@@ -497,16 +497,16 @@ export default function RouteEditorPage() {
                 }
               />
               <p style={{ fontSize: 12, color: '#94a3b8', marginTop: -8 }}>
-                Расстояние, на котором точка становится активной при приближении
+                Р Р°СЃСЃС‚РѕСЏРЅРёРµ, РЅР° РєРѕС‚РѕСЂРѕРј С‚РѕС‡РєР° СЃС‚Р°РЅРѕРІРёС‚СЃСЏ Р°РєС‚РёРІРЅРѕР№ РїСЂРё РїСЂРёР±Р»РёР¶РµРЅРёРё
               </p>
               <div className="props-coords">
                 <Input
-                  label="Широта"
+                  label="РЁРёСЂРѕС‚Р°"
                   value={selectedPoint.lat.toFixed(6)}
                   readOnly
                 />
                 <Input
-                  label="Долгота"
+                  label="Р”РѕР»РіРѕС‚Р°"
                   value={selectedPoint.lng.toFixed(6)}
                   readOnly
                 />
@@ -516,11 +516,11 @@ export default function RouteEditorPage() {
                 size="sm"
                 onClick={() => handleDeletePoint(selectedPoint.id)}
               >
-                Удалить точку
+                РЈРґР°Р»РёС‚СЊ С‚РѕС‡РєСѓ
               </Button>
 
               <div className="tools-divider" />
-              <h4 style={{ margin: '8px 0 4px' }}>Изображения</h4>
+              <h4 style={{ margin: '8px 0 4px' }}>РР·РѕР±СЂР°Р¶РµРЅРёСЏ</h4>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                 {(selectedPoint.media || [])
                   .filter((m) => m.type === 'image')
@@ -545,9 +545,23 @@ export default function RouteEditorPage() {
                     </div>
                   ))}
               </div>
+              <div className="point-media-list">
+                {(selectedPoint.media || [])
+                  .filter((m) => m.type === 'audio' || m.type === 'video')
+                  .map((m) => (
+                    <div key={m.id} className="point-media-row">
+                      <strong>{m.type === 'audio' ? 'Аудио' : 'Видео'}</strong>
+                      <span>{m.title}</span>
+                      {m.type === 'audio'
+                        ? <audio src={`${SERVER_URL}${m.url}`} controls />
+                        : <video src={`${SERVER_URL}${m.url}`} controls />}
+                      <button type="button" onClick={() => handleMediaDelete(m.id)}>Удалить</button>
+                    </div>
+                  ))}
+              </div>
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,audio/*,video/*"
                 ref={fileInputRef}
                 onChange={handleMediaUpload}
                 style={{ display: 'none' }}
@@ -559,21 +573,22 @@ export default function RouteEditorPage() {
                 disabled={uploadingMedia || selectedPoint.id.startsWith('temp-')}
                 style={{ width: '100%' }}
               >
-                {uploadingMedia ? 'Загрузка...' : 'Загрузить изображение'}
+                {uploadingMedia ? 'Загрузка...' : 'Загрузить фото, аудио или видео'}
               </Button>
               {selectedPoint.id.startsWith('temp-') && (
                 <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                  Сохраните точки перед загрузкой изображений
+                  РЎРѕС…СЂР°РЅРёС‚Рµ С‚РѕС‡РєРё РїРµСЂРµРґ Р·Р°РіСЂСѓР·РєРѕР№ РёР·РѕР±СЂР°Р¶РµРЅРёР№
                 </p>
               )}
             </div>
           </>
         ) : (
           <div className="props-empty">
-            <p>Выберите точку на карте или в списке для редактирования свойств</p>
+            <p>Р’С‹Р±РµСЂРёС‚Рµ С‚РѕС‡РєСѓ РЅР° РєР°СЂС‚Рµ РёР»Рё РІ СЃРїРёСЃРєРµ РґР»СЏ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ СЃРІРѕР№СЃС‚РІ</p>
           </div>
         )}
       </div>
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import { api } from '../api/client';
 import Button from '../components/ui/Button';
@@ -76,6 +76,8 @@ interface ThemeConfig {
   fontFamily: string;
   borderRadius: string;
   siteBg: string;
+  siteBgImage: string;
+  customCss: string;
   headerStyle: 'light' | 'dark';
   headerBg: string;
   headerTextColor: string;
@@ -104,6 +106,8 @@ const defaultTheme: ThemeConfig = {
   fontFamily: 'system',
   borderRadius: '8',
   siteBg: '#ffffff',
+  siteBgImage: '',
+  customCss: '',
   headerStyle: 'light',
   headerBg: '#ffffff',
   headerTextColor: '#0f172a',
@@ -116,77 +120,77 @@ const defaultTheme: ThemeConfig = {
 };
 
 const sectionLayouts: Record<SectionLayout, { label: string; widths: number[] }> = {
-  '1': { label: '1 колонка', widths: [100] },
-  '2': { label: '2 колонки', widths: [50, 50] },
-  '3': { label: '3 колонки', widths: [33, 34, 33] },
-  '4': { label: '4 колонки', widths: [25, 25, 25, 25] },
-  'asym-left': { label: 'Асимметрия 70/30', widths: [70, 30] },
-  'asym-right': { label: 'Асимметрия 30/70', widths: [30, 70] },
+  '1': { label: '1 РєРѕР»РѕРЅРєР°', widths: [100] },
+  '2': { label: '2 РєРѕР»РѕРЅРєРё', widths: [50, 50] },
+  '3': { label: '3 РєРѕР»РѕРЅРєРё', widths: [33, 34, 33] },
+  '4': { label: '4 РєРѕР»РѕРЅРєРё', widths: [25, 25, 25, 25] },
+  'asym-left': { label: 'РђСЃРёРјРјРµС‚СЂРёСЏ 70/30', widths: [70, 30] },
+  'asym-right': { label: 'РђСЃРёРјРјРµС‚СЂРёСЏ 30/70', widths: [30, 70] },
 };
 
 const elementLabels: Record<ElementType, { label: string; icon: string }> = {
-  heading: { label: 'Заголовок', icon: 'H' },
-  text: { label: 'Текст', icon: 'T' },
-  button: { label: 'Кнопка', icon: '>' },
-  backButton: { label: 'Назад', icon: '<' },
-  image: { label: 'Изображение', icon: '□' },
-  gallery: { label: 'Галерея', icon: '▦' },
-  video: { label: 'Видео', icon: '▶' },
-  divider: { label: 'Линия', icon: '─' },
-  spacer: { label: 'Отступ', icon: '↕' },
-  box: { label: 'Бокс', icon: '▣' },
-  list: { label: 'Список', icon: '≡' },
-  social: { label: 'Соцсети', icon: '#' },
-  menu: { label: 'Меню/якорь', icon: '⌁' },
-  form: { label: 'Форма', icon: '✎' },
-  map: { label: 'Карта', icon: '⌖' },
-  embed: { label: 'Код', icon: '</>' },
-  tours: { label: 'Экскурсии', icon: '◆' },
-  contacts: { label: 'Контакты', icon: '@' },
+  heading: { label: 'Р—Р°РіРѕР»РѕРІРѕРє', icon: 'H' },
+  text: { label: 'РўРµРєСЃС‚', icon: 'T' },
+  button: { label: 'РљРЅРѕРїРєР°', icon: '>' },
+  backButton: { label: 'РќР°Р·Р°Рґ', icon: '<' },
+  image: { label: 'РР·РѕР±СЂР°Р¶РµРЅРёРµ', icon: 'в–Ў' },
+  gallery: { label: 'Р“Р°Р»РµСЂРµСЏ', icon: 'в–¦' },
+  video: { label: 'Р’РёРґРµРѕ', icon: 'в–¶' },
+  divider: { label: 'Р›РёРЅРёСЏ', icon: 'в”Ђ' },
+  spacer: { label: 'РћС‚СЃС‚СѓРї', icon: 'в†•' },
+  box: { label: 'Р‘РѕРєСЃ', icon: 'в–Ј' },
+  list: { label: 'РЎРїРёСЃРѕРє', icon: 'в‰Ў' },
+  social: { label: 'РЎРѕС†СЃРµС‚Рё', icon: '#' },
+  menu: { label: 'РњРµРЅСЋ/СЏРєРѕСЂСЊ', icon: 'вЊЃ' },
+  form: { label: 'Р¤РѕСЂРјР°', icon: 'вњЋ' },
+  map: { label: 'РљР°СЂС‚Р°', icon: 'вЊ–' },
+  embed: { label: 'РљРѕРґ', icon: '</>' },
+  tours: { label: 'Р­РєСЃРєСѓСЂСЃРёРё', icon: 'в—†' },
+  contacts: { label: 'РљРѕРЅС‚Р°РєС‚С‹', icon: '@' },
 };
 
 const elementGroups: { title: string; items: ElementType[] }[] = [
-  { title: 'Базовые', items: ['heading', 'text', 'button', 'backButton', 'divider', 'spacer', 'box'] },
-  { title: 'Медиа', items: ['image', 'gallery', 'video'] },
-  { title: 'Структура', items: ['menu', 'list', 'embed'] },
-  { title: 'Бизнес', items: ['tours', 'contacts', 'form', 'map', 'social'] },
+  { title: 'Р‘Р°Р·РѕРІС‹Рµ', items: ['heading', 'text', 'button', 'backButton', 'divider', 'spacer', 'box'] },
+  { title: 'РњРµРґРёР°', items: ['image', 'gallery', 'video'] },
+  { title: 'РЎС‚СЂСѓРєС‚СѓСЂР°', items: ['menu', 'list', 'embed'] },
+  { title: 'Р‘РёР·РЅРµСЃ', items: ['tours', 'contacts', 'form', 'map', 'social'] },
 ];
 
 const sectionTemplateGroups = [
-  { title: 'Приветствие', items: ['hero-split', 'hero-center'] },
-  { title: 'О нас', items: ['about-photo', 'features'] },
-  { title: 'Контакты', items: ['contacts-strip', 'contacts-form'] },
-  { title: 'Продажи', items: ['services', 'reviews', 'cta'] },
+  { title: 'РџСЂРёРІРµС‚СЃС‚РІРёРµ', items: ['hero-split', 'hero-center'] },
+  { title: 'Рћ РЅР°СЃ', items: ['about-photo', 'features'] },
+  { title: 'РљРѕРЅС‚Р°РєС‚С‹', items: ['contacts-strip', 'contacts-form'] },
+  { title: 'РџСЂРѕРґР°Р¶Рё', items: ['services', 'reviews', 'cta'] },
 ] as const;
 
 function templateLabel(template: string) {
   const labels: Record<string, string> = {
-    'hero-split': 'Hero с изображением',
-    'hero-center': 'Центральный hero',
-    'about-photo': 'О нас с фото',
-    features: 'Преимущества',
-    'contacts-strip': 'Контакты полосой',
-    'contacts-form': 'Контакты + форма',
-    services: 'Услуги',
-    reviews: 'Отзывы',
-    cta: 'Призыв к действию',
+    'hero-split': 'Hero СЃ РёР·РѕР±СЂР°Р¶РµРЅРёРµРј',
+    'hero-center': 'Р¦РµРЅС‚СЂР°Р»СЊРЅС‹Р№ hero',
+    'about-photo': 'Рћ РЅР°СЃ СЃ С„РѕС‚Рѕ',
+    features: 'РџСЂРµРёРјСѓС‰РµСЃС‚РІР°',
+    'contacts-strip': 'РљРѕРЅС‚Р°РєС‚С‹ РїРѕР»РѕСЃРѕР№',
+    'contacts-form': 'РљРѕРЅС‚Р°РєС‚С‹ + С„РѕСЂРјР°',
+    services: 'РЈСЃР»СѓРіРё',
+    reviews: 'РћС‚Р·С‹РІС‹',
+    cta: 'РџСЂРёР·С‹РІ Рє РґРµР№СЃС‚РІРёСЋ',
   };
   return labels[template] || template;
 }
 
 function templateDescription(template: string) {
   const descriptions: Record<string, string> = {
-    'hero-split': 'Заголовок, текст, CTA и крупное изображение',
-    'hero-center': 'Центральный первый экран для промо',
-    'about-photo': 'Фото, описание и список преимуществ',
-    features: 'Три карточки преимуществ или фактов',
-    'contacts-strip': 'Короткая контактная полоса',
-    'contacts-form': 'Контакты рядом с формой заявки',
-    services: 'Три услуги с описаниями',
-    reviews: 'Карточки отзывов с аккуратной сеткой',
-    cta: 'Финальный призыв к действию',
+    'hero-split': 'Р—Р°РіРѕР»РѕРІРѕРє, С‚РµРєСЃС‚, CTA Рё РєСЂСѓРїРЅРѕРµ РёР·РѕР±СЂР°Р¶РµРЅРёРµ',
+    'hero-center': 'Р¦РµРЅС‚СЂР°Р»СЊРЅС‹Р№ РїРµСЂРІС‹Р№ СЌРєСЂР°РЅ РґР»СЏ РїСЂРѕРјРѕ',
+    'about-photo': 'Р¤РѕС‚Рѕ, РѕРїРёСЃР°РЅРёРµ Рё СЃРїРёСЃРѕРє РїСЂРµРёРјСѓС‰РµСЃС‚РІ',
+    features: 'РўСЂРё РєР°СЂС‚РѕС‡РєРё РїСЂРµРёРјСѓС‰РµСЃС‚РІ РёР»Рё С„Р°РєС‚РѕРІ',
+    'contacts-strip': 'РљРѕСЂРѕС‚РєР°СЏ РєРѕРЅС‚Р°РєС‚РЅР°СЏ РїРѕР»РѕСЃР°',
+    'contacts-form': 'РљРѕРЅС‚Р°РєС‚С‹ СЂСЏРґРѕРј СЃ С„РѕСЂРјРѕР№ Р·Р°СЏРІРєРё',
+    services: 'РўСЂРё СѓСЃР»СѓРіРё СЃ РѕРїРёСЃР°РЅРёСЏРјРё',
+    reviews: 'РљР°СЂС‚РѕС‡РєРё РѕС‚Р·С‹РІРѕРІ СЃ Р°РєРєСѓСЂР°С‚РЅРѕР№ СЃРµС‚РєРѕР№',
+    cta: 'Р¤РёРЅР°Р»СЊРЅС‹Р№ РїСЂРёР·С‹РІ Рє РґРµР№СЃС‚РІРёСЋ',
   };
-  return descriptions[template] || 'Готовая секция';
+  return descriptions[template] || 'Р“РѕС‚РѕРІР°СЏ СЃРµРєС†РёСЏ';
 }
 
 function getMapEmbedUrl(data: Record<string, any>) {
@@ -247,25 +251,25 @@ function createElement(type: ElementType): BuilderElement {
     heading: {
       id: uid('element'),
       type,
-      data: { text: 'Новый заголовок', level: 'h2' },
+      data: { text: 'РќРѕРІС‹Р№ Р·Р°РіРѕР»РѕРІРѕРє', level: 'h2' },
       style: { padding: 0, margin: 8, fontSize: 28, align: 'left', color: '#0f172a', width: 100 },
     },
     text: {
       id: uid('element'),
       type,
-      data: { text: 'Добавьте описание, историю или полезную информацию для посетителей сайта.' },
+      data: { text: 'Р”РѕР±Р°РІСЊС‚Рµ РѕРїРёСЃР°РЅРёРµ, РёСЃС‚РѕСЂРёСЋ РёР»Рё РїРѕР»РµР·РЅСѓСЋ РёРЅС„РѕСЂРјР°С†РёСЋ РґР»СЏ РїРѕСЃРµС‚РёС‚РµР»РµР№ СЃР°Р№С‚Р°.' },
       style: { padding: 0, margin: 8, fontSize: 15, align: 'left', color: '#475569', width: 100 },
     },
     button: {
       id: uid('element'),
       type,
-      data: { text: 'Подробнее', href: '#', variant: 'filled' },
+      data: { text: 'РџРѕРґСЂРѕР±РЅРµРµ', href: '#', variant: 'filled' },
       style: { padding: 12, margin: 8, radius: 8, align: 'left', width: 40 },
     },
     backButton: {
       id: uid('element'),
       type,
-      data: { text: 'Назад', mode: 'history', href: '/' },
+      data: { text: 'РќР°Р·Р°Рґ', mode: 'history', href: '/' },
       style: { padding: 10, margin: 8, radius: 8, align: 'left', width: 32 },
     },
     image: {
@@ -283,7 +287,7 @@ function createElement(type: ElementType): BuilderElement {
     video: {
       id: uid('element'),
       type,
-      data: { url: '', title: 'Видео' },
+      data: { url: '', title: 'Р’РёРґРµРѕ' },
       style: { padding: 0, margin: 8, radius: 12, width: 100 },
     },
     divider: {
@@ -301,13 +305,13 @@ function createElement(type: ElementType): BuilderElement {
     box: {
       id: uid('element'),
       type,
-      data: { text: 'Контейнер для акцента, карточки или заметки' },
+      data: { text: 'РљРѕРЅС‚РµР№РЅРµСЂ РґР»СЏ Р°РєС†РµРЅС‚Р°, РєР°СЂС‚РѕС‡РєРё РёР»Рё Р·Р°РјРµС‚РєРё' },
       style: { padding: 20, margin: 8, radius: 12, background: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', width: 100 },
     },
     list: {
       id: uid('element'),
       type,
-      data: { heading: 'Список', items: ['Первый пункт', 'Второй пункт', 'Третий пункт'], ordered: false },
+      data: { heading: 'РЎРїРёСЃРѕРє', items: ['РџРµСЂРІС‹Р№ РїСѓРЅРєС‚', 'Р’С‚РѕСЂРѕР№ РїСѓРЅРєС‚', 'РўСЂРµС‚РёР№ РїСѓРЅРєС‚'], ordered: false },
       style: { padding: 0, margin: 8, width: 100 },
     },
     social: {
@@ -319,37 +323,37 @@ function createElement(type: ElementType): BuilderElement {
     menu: {
       id: uid('element'),
       type,
-      data: { anchor: 'section', label: 'Якорь секции' },
+      data: { anchor: 'section', label: 'РЇРєРѕСЂСЊ СЃРµРєС†РёРё' },
       style: { padding: 8, margin: 8, background: '#eef2ff', radius: 8, width: 60 },
     },
     form: {
       id: uid('element'),
       type,
-      data: { heading: 'Оставить заявку', fields: ['Имя', 'Email', 'Сообщение'], buttonText: 'Отправить' },
+      data: { heading: 'РћСЃС‚Р°РІРёС‚СЊ Р·Р°СЏРІРєСѓ', fields: ['РРјСЏ', 'Email', 'РЎРѕРѕР±С‰РµРЅРёРµ'], buttonText: 'РћС‚РїСЂР°РІРёС‚СЊ' },
       style: { padding: 20, margin: 8, radius: 12, background: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', width: 100 },
     },
     map: {
       id: uid('element'),
       type,
-      data: { address: 'Санкт-Петербург', lat: 59.939, lng: 30.316, zoom: 13, embedUrl: '' },
+      data: { address: 'РЎР°РЅРєС‚-РџРµС‚РµСЂР±СѓСЂРі', lat: 59.939, lng: 30.316, zoom: 13, embedUrl: '' },
       style: { padding: 0, margin: 8, radius: 12, width: 100 },
     },
     embed: {
       id: uid('element'),
       type,
-      data: { code: '<div>HTML-код</div>' },
+      data: { code: '<div>HTML-РєРѕРґ</div>' },
       style: { padding: 16, margin: 8, background: '#0f172a', color: '#ffffff', radius: 8, width: 100 },
     },
     tours: {
       id: uid('element'),
       type,
-      data: { heading: 'Доступные экскурсии', columns: 2, selectedTourIds: [] },
+      data: { heading: 'Р”РѕСЃС‚СѓРїРЅС‹Рµ СЌРєСЃРєСѓСЂСЃРёРё', columns: 2, selectedTourIds: [] },
       style: { padding: 0, margin: 8, width: 100 },
     },
     contacts: {
       id: uid('element'),
       type,
-      data: { heading: 'Связаться со мной', email: '', phone: '', telegram: '', address: '' },
+      data: { heading: 'РЎРІСЏР·Р°С‚СЊСЃСЏ СЃРѕ РјРЅРѕР№', email: '', phone: '', telegram: '', address: '' },
       style: { padding: 0, margin: 8, width: 100 },
     },
   };
@@ -375,9 +379,9 @@ function createSectionTemplate(template: string): BuilderSection {
     const section = createSection('2');
     section.style = { ...section.style, background: '#f8fafc', padding: 48 };
     section.columns[0].elements = [
-      { ...createElement('heading'), data: { text: 'Новая экскурсия по городу', level: 'h1' }, style: { padding: 0, margin: 8, fontSize: 40, align: 'left', color: '#0f172a', width: 100 } },
-      { ...createElement('text'), data: { text: 'Расскажите, чем уникален ваш маршрут, кому он подходит и почему его стоит пройти.' } },
-      { ...createElement('button'), data: { text: 'Выбрать маршрут', href: '#tours', variant: 'filled' } },
+      { ...createElement('heading'), data: { text: 'РќРѕРІР°СЏ СЌРєСЃРєСѓСЂСЃРёСЏ РїРѕ РіРѕСЂРѕРґСѓ', level: 'h1' }, style: { padding: 0, margin: 8, fontSize: 40, align: 'left', color: '#0f172a', width: 100 } },
+      { ...createElement('text'), data: { text: 'Р Р°СЃСЃРєР°Р¶РёС‚Рµ, С‡РµРј СѓРЅРёРєР°Р»РµРЅ РІР°С€ РјР°СЂС€СЂСѓС‚, РєРѕРјСѓ РѕРЅ РїРѕРґС…РѕРґРёС‚ Рё РїРѕС‡РµРјСѓ РµРіРѕ СЃС‚РѕРёС‚ РїСЂРѕР№С‚Рё.' } },
+      { ...createElement('button'), data: { text: 'Р’С‹Р±СЂР°С‚СЊ РјР°СЂС€СЂСѓС‚', href: '#tours', variant: 'filled' } },
     ];
     section.columns[1].elements = [{ ...createElement('image'), style: { padding: 0, margin: 8, radius: 18, width: 100 } }];
     return section;
@@ -386,9 +390,9 @@ function createSectionTemplate(template: string): BuilderSection {
     const section = createSection('1');
     section.style = { ...section.style, background: '#0f172a', color: '#ffffff', padding: 64 };
     section.columns[0].elements = [
-      { ...createElement('heading'), data: { text: 'Авторские маршруты рядом с вами', level: 'h1' }, style: { padding: 0, margin: 8, fontSize: 42, align: 'center', color: '#ffffff', width: 100 } },
-      { ...createElement('text'), data: { text: 'Индивидуальные экскурсии с картой, точками интереса и мультимедийным сопровождением.' }, style: { padding: 0, margin: 8, fontSize: 17, align: 'center', color: '#cbd5e1', width: 100 } },
-      { ...createElement('button'), data: { text: 'Начать', href: '#tours', variant: 'outline' }, style: { padding: 12, margin: 8, radius: 999, align: 'center', width: 28 } },
+      { ...createElement('heading'), data: { text: 'РђРІС‚РѕСЂСЃРєРёРµ РјР°СЂС€СЂСѓС‚С‹ СЂСЏРґРѕРј СЃ РІР°РјРё', level: 'h1' }, style: { padding: 0, margin: 8, fontSize: 42, align: 'center', color: '#ffffff', width: 100 } },
+      { ...createElement('text'), data: { text: 'РРЅРґРёРІРёРґСѓР°Р»СЊРЅС‹Рµ СЌРєСЃРєСѓСЂСЃРёРё СЃ РєР°СЂС‚РѕР№, С‚РѕС‡РєР°РјРё РёРЅС‚РµСЂРµСЃР° Рё РјСѓР»СЊС‚РёРјРµРґРёР№РЅС‹Рј СЃРѕРїСЂРѕРІРѕР¶РґРµРЅРёРµРј.' }, style: { padding: 0, margin: 8, fontSize: 17, align: 'center', color: '#cbd5e1', width: 100 } },
+      { ...createElement('button'), data: { text: 'РќР°С‡Р°С‚СЊ', href: '#tours', variant: 'outline' }, style: { padding: 12, margin: 8, radius: 999, align: 'center', width: 28 } },
     ];
     return section;
   }
@@ -396,9 +400,9 @@ function createSectionTemplate(template: string): BuilderSection {
     const section = createSection('2');
     section.columns[0].elements = [{ ...createElement('image'), style: { padding: 0, margin: 8, radius: 16, width: 100 } }];
     section.columns[1].elements = [
-      { ...createElement('heading'), data: { text: 'О проекте', level: 'h2' } },
-      { ...createElement('text'), data: { text: 'Добавьте информацию об авторе, опыте, подходе к экскурсиям и особенностях маршрутов.' } },
-      { ...createElement('list'), data: { heading: 'Преимущества', items: ['Самостоятельное прохождение', 'Медиа в точках маршрута', 'Удобный веб-плеер'], ordered: false } },
+      { ...createElement('heading'), data: { text: 'Рћ РїСЂРѕРµРєС‚Рµ', level: 'h2' } },
+      { ...createElement('text'), data: { text: 'Р”РѕР±Р°РІСЊС‚Рµ РёРЅС„РѕСЂРјР°С†РёСЋ РѕР± Р°РІС‚РѕСЂРµ, РѕРїС‹С‚Рµ, РїРѕРґС…РѕРґРµ Рє СЌРєСЃРєСѓСЂСЃРёСЏРј Рё РѕСЃРѕР±РµРЅРЅРѕСЃС‚СЏС… РјР°СЂС€СЂСѓС‚РѕРІ.' } },
+      { ...createElement('list'), data: { heading: 'РџСЂРµРёРјСѓС‰РµСЃС‚РІР°', items: ['РЎР°РјРѕСЃС‚РѕСЏС‚РµР»СЊРЅРѕРµ РїСЂРѕС…РѕР¶РґРµРЅРёРµ', 'РњРµРґРёР° РІ С‚РѕС‡РєР°С… РјР°СЂС€СЂСѓС‚Р°', 'РЈРґРѕР±РЅС‹Р№ РІРµР±-РїР»РµРµСЂ'], ordered: false } },
     ];
     return section;
   }
@@ -406,7 +410,7 @@ function createSectionTemplate(template: string): BuilderSection {
     const section = createSection('3');
     section.columns.forEach((column, index) => {
       column.elements = [
-        { ...createElement('box'), data: { text: ['Геолокация', 'Мультимедиа', 'Публикация'][index] }, style: { padding: 22, margin: 8, radius: 14, background: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', width: 100 } },
+        { ...createElement('box'), data: { text: ['Р“РµРѕР»РѕРєР°С†РёСЏ', 'РњСѓР»СЊС‚РёРјРµРґРёР°', 'РџСѓР±Р»РёРєР°С†РёСЏ'][index] }, style: { padding: 22, margin: 8, radius: 14, background: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', width: 100 } },
       ];
     });
     return section;
@@ -414,7 +418,7 @@ function createSectionTemplate(template: string): BuilderSection {
   if (template === 'contacts-strip') {
     const section = createSection('3');
     section.style = { ...section.style, background: '#f8fafc', padding: 28 };
-    section.columns[0].elements = [{ ...createElement('box'), data: { text: 'Адрес\nСанкт-Петербург' } }];
+    section.columns[0].elements = [{ ...createElement('box'), data: { text: 'РђРґСЂРµСЃ\nРЎР°РЅРєС‚-РџРµС‚РµСЂР±СѓСЂРі' } }];
     section.columns[1].elements = [{ ...createElement('box'), data: { text: 'Email\nexample@mail.ru' } }];
     section.columns[2].elements = [{ ...createElement('social') }];
     return section;
@@ -429,8 +433,8 @@ function createSectionTemplate(template: string): BuilderSection {
     const section = createSection('3');
     section.columns.forEach((column, index) => {
       column.elements = [
-        { ...createElement('heading'), data: { text: ['Городские прогулки', 'Музейные маршруты', 'Семейные экскурсии'][index], level: 'h3' }, style: { padding: 0, margin: 8, fontSize: 20, width: 100 } },
-        { ...createElement('text'), data: { text: 'Кратко опишите услугу, формат и ценность для посетителя.' } },
+        { ...createElement('heading'), data: { text: ['Р“РѕСЂРѕРґСЃРєРёРµ РїСЂРѕРіСѓР»РєРё', 'РњСѓР·РµР№РЅС‹Рµ РјР°СЂС€СЂСѓС‚С‹', 'РЎРµРјРµР№РЅС‹Рµ СЌРєСЃРєСѓСЂСЃРёРё'][index], level: 'h3' }, style: { padding: 0, margin: 8, fontSize: 20, width: 100 } },
+        { ...createElement('text'), data: { text: 'РљСЂР°С‚РєРѕ РѕРїРёС€РёС‚Рµ СѓСЃР»СѓРіСѓ, С„РѕСЂРјР°С‚ Рё С†РµРЅРЅРѕСЃС‚СЊ РґР»СЏ РїРѕСЃРµС‚РёС‚РµР»СЏ.' } },
       ];
     });
     return section;
@@ -439,15 +443,15 @@ function createSectionTemplate(template: string): BuilderSection {
     const section = createSection('3');
     section.style = { ...section.style, background: '#f8fafc', padding: 44 };
     section.columns.forEach((column, index) => {
-      const names = ['Анна Смирнова', 'Илья Морозов', 'Екатерина Лебедева'];
+      const names = ['РђРЅРЅР° РЎРјРёСЂРЅРѕРІР°', 'РР»СЊСЏ РњРѕСЂРѕР·РѕРІ', 'Р•РєР°С‚РµСЂРёРЅР° Р›РµР±РµРґРµРІР°'];
       const texts = [
-        'Маршрут получился живым: карта вела понятно, а истории в точках добавляли контекст.',
-        'Удобно идти в своем темпе. Особенно понравились медиа и короткие подсказки.',
-        'Хороший формат для прогулки по городу: не надо искать информацию отдельно.',
+        'РњР°СЂС€СЂСѓС‚ РїРѕР»СѓС‡РёР»СЃСЏ Р¶РёРІС‹Рј: РєР°СЂС‚Р° РІРµР»Р° РїРѕРЅСЏС‚РЅРѕ, Р° РёСЃС‚РѕСЂРёРё РІ С‚РѕС‡РєР°С… РґРѕР±Р°РІР»СЏР»Рё РєРѕРЅС‚РµРєСЃС‚.',
+        'РЈРґРѕР±РЅРѕ РёРґС‚Рё РІ СЃРІРѕРµРј С‚РµРјРїРµ. РћСЃРѕР±РµРЅРЅРѕ РїРѕРЅСЂР°РІРёР»РёСЃСЊ РјРµРґРёР° Рё РєРѕСЂРѕС‚РєРёРµ РїРѕРґСЃРєР°Р·РєРё.',
+        'РҐРѕСЂРѕС€РёР№ С„РѕСЂРјР°С‚ РґР»СЏ РїСЂРѕРіСѓР»РєРё РїРѕ РіРѕСЂРѕРґСѓ: РЅРµ РЅР°РґРѕ РёСЃРєР°С‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ РѕС‚РґРµР»СЊРЅРѕ.',
       ];
       column.elements = [{
         ...createElement('box'),
-        data: { text: `★★★★★\n${texts[index]}\n${names[index]}` },
+        data: { text: `в…в…в…в…в…\n${texts[index]}\n${names[index]}` },
         style: { padding: 24, margin: 8, radius: 14, background: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0', shadow: '0 8px 24px rgba(15,23,42,0.12)', width: 100 },
       }];
     });
@@ -456,8 +460,8 @@ function createSectionTemplate(template: string): BuilderSection {
   const section = createSection('1');
   section.style = { ...section.style, background: '#eef2ff', padding: 40 };
   section.columns[0].elements = [
-    { ...createElement('heading'), data: { text: 'Готовы начать?', level: 'h2' }, style: { padding: 0, margin: 8, fontSize: 30, align: 'center', width: 100 } },
-    { ...createElement('button'), data: { text: 'Связаться', href: '#contacts', variant: 'filled' }, style: { padding: 12, margin: 8, radius: 10, align: 'center', width: 24 } },
+    { ...createElement('heading'), data: { text: 'Р“РѕС‚РѕРІС‹ РЅР°С‡Р°С‚СЊ?', level: 'h2' }, style: { padding: 0, margin: 8, fontSize: 30, align: 'center', width: 100 } },
+    { ...createElement('button'), data: { text: 'РЎРІСЏР·Р°С‚СЊСЃСЏ', href: '#contacts', variant: 'filled' }, style: { padding: 12, margin: 8, radius: 10, align: 'center', width: 24 } },
   ];
   return section;
 }
@@ -466,18 +470,18 @@ function getInitialPages(): BuilderPage[] {
   const hero = createSection('2');
   hero.style = { ...hero.style, background: '#f8fafc', padding: 40 };
   hero.columns[0].elements = [
-    { ...createElement('heading'), data: { text: 'Авторские экскурсии', level: 'h1' }, style: { padding: 0, margin: 8, fontSize: 36, align: 'left', color: '#0f172a', width: 100 } },
-    { ...createElement('text'), data: { text: 'Соберите страницу так, как нужно именно вашему проекту: секции, колонки, медиа, маршруты и контакты.' } },
-    { ...createElement('button'), data: { text: 'Смотреть экскурсии', href: '#tours', variant: 'filled' } },
+    { ...createElement('heading'), data: { text: 'РђРІС‚РѕСЂСЃРєРёРµ СЌРєСЃРєСѓСЂСЃРёРё', level: 'h1' }, style: { padding: 0, margin: 8, fontSize: 36, align: 'left', color: '#0f172a', width: 100 } },
+    { ...createElement('text'), data: { text: 'РЎРѕР±РµСЂРёС‚Рµ СЃС‚СЂР°РЅРёС†Сѓ С‚Р°Рє, РєР°Рє РЅСѓР¶РЅРѕ РёРјРµРЅРЅРѕ РІР°С€РµРјСѓ РїСЂРѕРµРєС‚Сѓ: СЃРµРєС†РёРё, РєРѕР»РѕРЅРєРё, РјРµРґРёР°, РјР°СЂС€СЂСѓС‚С‹ Рё РєРѕРЅС‚Р°РєС‚С‹.' } },
+    { ...createElement('button'), data: { text: 'РЎРјРѕС‚СЂРµС‚СЊ СЌРєСЃРєСѓСЂСЃРёРё', href: '#tours', variant: 'filled' } },
   ];
-  hero.columns[1].elements = [{ ...createElement('image'), data: { src: '', alt: 'Обложка', fit: 'cover' } }];
+  hero.columns[1].elements = [{ ...createElement('image'), data: { src: '', alt: 'РћР±Р»РѕР¶РєР°', fit: 'cover' } }];
 
   const tours = createSection('1');
-  tours.columns[0].elements = [{ ...createElement('tours'), data: { heading: 'Доступные экскурсии', columns: 3, selectedTourIds: [] } }];
+  tours.columns[0].elements = [{ ...createElement('tours'), data: { heading: 'Р”РѕСЃС‚СѓРїРЅС‹Рµ СЌРєСЃРєСѓСЂСЃРёРё', columns: 3, selectedTourIds: [] } }];
 
   return [
-    { id: 'page-main', title: 'Главная', slug: '', sections: [hero, tours] },
-    { id: 'page-contacts', title: 'Контакты', slug: 'contacts', sections: [createSection('1')] },
+    { id: 'page-main', title: 'Р“Р»Р°РІРЅР°СЏ', slug: '', sections: [hero, tours] },
+    { id: 'page-contacts', title: 'РљРѕРЅС‚Р°РєС‚С‹', slug: 'contacts', sections: [createSection('1')] },
   ];
 }
 
@@ -497,7 +501,7 @@ function migratePages(data: any): BuilderPage[] {
       };
       const element = createElement(typeMap[block.type] || 'text');
       if (block.type === 'banner') {
-        element.data = { text: block.data.title || 'Заголовок', level: 'h1', subtitle: block.data.subtitle };
+        element.data = { text: block.data.title || 'Р—Р°РіРѕР»РѕРІРѕРє', level: 'h1', subtitle: block.data.subtitle };
         element.style.fontSize = 36;
         section.style.background = block.data.bgColor || '#ffffff';
         section.style.color = block.data.textColor;
@@ -538,6 +542,7 @@ function getFontFamily(font: string) {
 export default function SiteBuilderPage() {
   const [site, setSite] = useState<any>(null);
   const [pages, setPages] = useState<BuilderPage[]>(getInitialPages);
+  const [siteSlug, setSiteSlug] = useState('maxim-furzikov');
   const [activePageId, setActivePageId] = useState('page-main');
   const [theme, setTheme] = useState<ThemeConfig>(defaultTheme);
   const [tab, setTab] = useState<BuilderTab>('sections');
@@ -560,13 +565,14 @@ export default function SiteBuilderPage() {
   useEffect(() => {
     api.getShowcase('maxim-furzikov')
       .then((d: any) => setSite(d))
-      .catch(() => api.getShowcase('aleksey-petrov').then((d: any) => setSite({ ...d, title: 'Экскурсии Максима Фурзикова', slug: 'maxim-furzikov' })));
+      .catch(() => api.getShowcase('aleksey-petrov').then((d: any) => setSite({ ...d, title: 'Р­РєСЃРєСѓСЂСЃРёРё РњР°РєСЃРёРјР° Р¤СѓСЂР·РёРєРѕРІР°', slug: 'maxim-furzikov' })));
     api.getExcursions().then((d: any) => setTours(d));
     api.getConstructorData()
       .then((d: any) => {
         const loaded = migratePages(d);
         setPages(loaded);
         if (d?.theme) setTheme({ ...defaultTheme, ...d.theme });
+        if (d?.siteSlug) setSiteSlug(d.siteSlug);
         if (loaded.length > 0) setActivePageId(loaded[0].id);
       })
       .catch(() => {});
@@ -624,7 +630,7 @@ export default function SiteBuilderPage() {
 
   const addPage = () => {
     const id = uid('page');
-    setPages((current) => [...current, { id, title: 'Новая страница', slug: `page-${current.length + 1}`, sections: [] }]);
+    setPages((current) => [...current, { id, title: 'РќРѕРІР°СЏ СЃС‚СЂР°РЅРёС†Р°', slug: `page-${current.length + 1}`, sections: [] }]);
     setActivePageId(id);
     setSelection(null);
   };
@@ -846,17 +852,17 @@ export default function SiteBuilderPage() {
     input.click();
   };
 
-  const savePayload = { pages, theme, version: 2 };
+  const savePayload = { pages, theme, siteSlug, version: 2 };
 
   const handleSave = async () => {
     setSaving(true);
     setStatusMsg(null);
     try {
       await api.saveDraft(savePayload);
-      setStatusMsg('Черновик сохранен');
+      setStatusMsg('Р§РµСЂРЅРѕРІРёРє СЃРѕС…СЂР°РЅРµРЅ');
       setTimeout(() => setStatusMsg(null), 3000);
     } catch {
-      setStatusMsg('Ошибка сохранения');
+      setStatusMsg('РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ');
     }
     setSaving(false);
   };
@@ -866,39 +872,39 @@ export default function SiteBuilderPage() {
     setStatusMsg(null);
     try {
       await api.saveConstructor(savePayload);
-      setStatusMsg('Сайт опубликован');
+      setStatusMsg('РЎР°Р№С‚ РѕРїСѓР±Р»РёРєРѕРІР°РЅ');
       setTimeout(() => setStatusMsg(null), 3000);
     } catch {
-      setStatusMsg('Ошибка публикации');
+      setStatusMsg('РћС€РёР±РєР° РїСѓР±Р»РёРєР°С†РёРё');
     }
     setPublishing(false);
   };
 
-  if (!site || !activePage) return <p style={{ padding: 20 }}>Загрузка...</p>;
+  if (!site || !activePage) return <p style={{ padding: 20 }}>Р—Р°РіСЂСѓР·РєР°...</p>;
 
   return (
     <div className={`constructor-layout ${!leftPanelOpen ? 'left-collapsed' : ''} ${!rightPanelOpen ? 'right-collapsed' : ''}`}>
       {leftPanelOpen && (
       <div className="constructor-left">
         <div className="constructor-left-header">
-          <h3>Конструктор сайта</h3>
+          <h3>РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ СЃР°Р№С‚Р°</h3>
           <div className="panel-header-actions">
             <Badge variant={site.published ? 'success' : 'default'}>
-              {site.published ? 'Онлайн' : 'Черновик'}
+              {site.published ? 'РћРЅР»Р°Р№РЅ' : 'Р§РµСЂРЅРѕРІРёРє'}
             </Badge>
-            <button className="panel-toggle-btn" type="button" onClick={() => setLeftPanelOpen(false)} title="Скрыть панель конструктора">
-              ←
+            <button className="panel-toggle-btn" type="button" onClick={() => setLeftPanelOpen(false)} title="РЎРєСЂС‹С‚СЊ РїР°РЅРµР»СЊ РєРѕРЅСЃС‚СЂСѓРєС‚РѕСЂР°">
+              в†ђ
             </button>
           </div>
         </div>
 
         <div className="constructor-tabs vertical-tabs">
           {[
-            ['sections', 'Секции', '▤'],
-            ['elements', 'Элементы', '+'],
-            ['templates', 'Шаблоны', '▧'],
-            ['pages', 'Страницы', '≡'],
-            ['theme', 'Тема', '◐'],
+            ['sections', 'РЎРµРєС†РёРё', 'в–¤'],
+            ['elements', 'Р­Р»РµРјРµРЅС‚С‹', '+'],
+            ['templates', 'РЁР°Р±Р»РѕРЅС‹', 'в–§'],
+            ['pages', 'РЎС‚СЂР°РЅРёС†С‹', 'в‰Ў'],
+            ['theme', 'РўРµРјР°', 'в—ђ'],
           ].map(([id, label, icon]) => (
             <button key={id} className={`ctab ${tab === id ? 'active' : ''}`} onClick={() => setTab(id as BuilderTab)}>
               <span className="ctab-icon">{icon}</span>
@@ -909,11 +915,11 @@ export default function SiteBuilderPage() {
 
         {tab === 'sections' && (
           <div className="constructor-panel">
-            <p className="panel-label">Секции страницы "{activePage.title}"</p>
+            <p className="panel-label">РЎРµРєС†РёРё СЃС‚СЂР°РЅРёС†С‹ "{activePage.title}"</p>
             <div className="block-list">
               <div className={`block-list-item ${selection?.type === 'header' ? 'selected' : ''}`} onClick={() => setSelection({ type: 'header' })}>
-                <span className="block-icon">≡</span>
-                <span className="block-label">Шапка сайта</span>
+                <span className="block-icon">в‰Ў</span>
+                <span className="block-label">РЁР°РїРєР° СЃР°Р№С‚Р°</span>
               </div>
               {activePage.sections.map((section, index) => (
                 <div
@@ -925,13 +931,13 @@ export default function SiteBuilderPage() {
                   onDrop={() => moveSection(section.id)}
                   onClick={() => setSelection({ type: 'section', sectionId: section.id })}
                 >
-                  <span className="block-icon">☰</span>
-                  <span className="block-label">Секция {index + 1} · {sectionLayouts[section.layout].label}</span>
-                  <button className="block-action-btn danger" onClick={(event) => { event.stopPropagation(); deleteSection(section.id); }}>×</button>
+                  <span className="block-icon">в°</span>
+                  <span className="block-label">РЎРµРєС†РёСЏ {index + 1} В· {sectionLayouts[section.layout].label}</span>
+                  <button className="block-action-btn danger" onClick={(event) => { event.stopPropagation(); deleteSection(section.id); }}>Г—</button>
                 </div>
               ))}
             </div>
-            <p className="panel-label" style={{ marginTop: 16 }}>Добавить секцию</p>
+            <p className="panel-label" style={{ marginTop: 16 }}>Р”РѕР±Р°РІРёС‚СЊ СЃРµРєС†РёСЋ</p>
             <div className="add-block-grid">
               {(Object.keys(sectionLayouts) as SectionLayout[]).map((layout) => (
                 <button key={layout} className="add-block-btn" onClick={() => addSection(layout)}>
@@ -945,7 +951,7 @@ export default function SiteBuilderPage() {
 
         {tab === 'templates' && (
           <div className="constructor-panel">
-            <p className="panel-label">Готовые секции</p>
+            <p className="panel-label">Р“РѕС‚РѕРІС‹Рµ СЃРµРєС†РёРё</p>
             <div className="template-groups">
               {sectionTemplateGroups.map((group) => (
                 <div key={group.title} className="template-group">
@@ -971,7 +977,7 @@ export default function SiteBuilderPage() {
 
         {tab === 'elements' && (
           <div className="constructor-panel">
-            <p className="panel-label">Добавить в выбранную колонку</p>
+            <p className="panel-label">Р”РѕР±Р°РІРёС‚СЊ РІ РІС‹Р±СЂР°РЅРЅСѓСЋ РєРѕР»РѕРЅРєСѓ</p>
             <div className="element-catalog">
               {elementGroups.map((group) => (
                 <div key={group.title} className="element-group">
@@ -987,29 +993,35 @@ export default function SiteBuilderPage() {
                 </div>
               ))}
             </div>
-            <p className="panel-hint">Элементы можно перетаскивать между колонками прямо в предпросмотре.</p>
+            <p className="panel-hint">Р­Р»РµРјРµРЅС‚С‹ РјРѕР¶РЅРѕ РїРµСЂРµС‚Р°СЃРєРёРІР°С‚СЊ РјРµР¶РґСѓ РєРѕР»РѕРЅРєР°РјРё РїСЂСЏРјРѕ РІ РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂРµ.</p>
           </div>
         )}
 
         {tab === 'pages' && (
           <div className="constructor-panel">
-            <p className="panel-label">Страницы сайта</p>
+            <p className="panel-label">РЎС‚СЂР°РЅРёС†С‹ СЃР°Р№С‚Р°</p>
             <div className="page-list">
               {pages.map((page) => (
                 <div key={page.id} className={`page-list-item ${activePageId === page.id ? 'active' : ''}`} onClick={() => { setActivePageId(page.id); setSelection(null); }}>
                   <span className="page-title">{page.title}</span>
                   <span className="page-slug">/{page.slug}</span>
-                  {pages.length > 1 && <button className="block-action-btn danger" onClick={(event) => { event.stopPropagation(); deletePage(page.id); }}>×</button>}
+                  {pages.length > 1 && <button className="block-action-btn danger" onClick={(event) => { event.stopPropagation(); deletePage(page.id); }}>Г—</button>}
                 </div>
               ))}
             </div>
-            <Button size="sm" variant="secondary" onClick={addPage} style={{ width: '100%', marginTop: 12 }}>+ Добавить страницу</Button>
+            <Button size="sm" variant="secondary" onClick={addPage} style={{ width: '100%', marginTop: 12 }}>+ Р”РѕР±Р°РІРёС‚СЊ СЃС‚СЂР°РЅРёС†Сѓ</Button>
           </div>
         )}
 
         {tab === 'theme' && (
           <div className="constructor-panel">
-            <GeneralThemeEditor theme={theme} setTheme={setTheme} />
+            <GeneralThemeEditor
+              theme={theme}
+              setTheme={setTheme}
+              siteSlug={siteSlug}
+              setSiteSlug={setSiteSlug}
+              uploadSingleImage={uploadSingleImage}
+            />
           </div>
         )}
       </div>
@@ -1018,8 +1030,8 @@ export default function SiteBuilderPage() {
       <div className="constructor-preview">
         <div className="preview-toolbar">
           {!leftPanelOpen && (
-            <button className="workspace-panel-btn" type="button" onClick={() => setLeftPanelOpen(true)} title="Показать панель конструктора">
-              ☰
+            <button className="workspace-panel-btn" type="button" onClick={() => setLeftPanelOpen(true)} title="РџРѕРєР°Р·Р°С‚СЊ РїР°РЅРµР»СЊ РєРѕРЅСЃС‚СЂСѓРєС‚РѕСЂР°">
+              в°
             </button>
           )}
           <div className="preview-page-tabs">
@@ -1031,8 +1043,8 @@ export default function SiteBuilderPage() {
           </div>
           <div className="preview-actions">
             <div className="history-actions">
-              <button type="button" onClick={undo} disabled={historyIndex <= 0} title="Отменить">↶</button>
-              <button type="button" onClick={redo} disabled={historyIndex >= history.length - 1} title="Вернуть">↷</button>
+              <button type="button" onClick={undo} disabled={historyIndex <= 0} title="РћС‚РјРµРЅРёС‚СЊ">в†¶</button>
+              <button type="button" onClick={redo} disabled={historyIndex >= history.length - 1} title="Р’РµСЂРЅСѓС‚СЊ">в†·</button>
             </div>
             <div className="zoom-control">
               <button type="button" onClick={() => setZoom((value) => Math.max(50, value - 10))}>-</button>
@@ -1046,15 +1058,15 @@ export default function SiteBuilderPage() {
                 </button>
               ))}
             </div>
-            <Button variant="secondary" size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить черновик'}</Button>
-            <Button size="sm" onClick={handlePublish} disabled={publishing}>{publishing ? 'Публикация...' : 'Опубликовать'}</Button>
+            <Button variant="secondary" size="sm" onClick={handleSave} disabled={saving}>{saving ? 'РЎРѕС…СЂР°РЅРµРЅРёРµ...' : 'РЎРѕС…СЂР°РЅРёС‚СЊ С‡РµСЂРЅРѕРІРёРє'}</Button>
+            <Button size="sm" onClick={handlePublish} disabled={publishing}>{publishing ? 'РџСѓР±Р»РёРєР°С†РёСЏ...' : 'РћРїСѓР±Р»РёРєРѕРІР°С‚СЊ'}</Button>
             <button
               className="workspace-panel-btn"
               type="button"
               onClick={() => setRightPanelOpen((open) => !open)}
-              title={rightPanelOpen ? 'Скрыть свойства' : 'Показать свойства'}
+              title={rightPanelOpen ? 'РЎРєСЂС‹С‚СЊ СЃРІРѕР№СЃС‚РІР°' : 'РџРѕРєР°Р·Р°С‚СЊ СЃРІРѕР№СЃС‚РІР°'}
             >
-              {rightPanelOpen ? '→' : '⚙'}
+              {rightPanelOpen ? 'в†’' : 'вљ™'}
             </button>
           </div>
         </div>
@@ -1066,11 +1078,16 @@ export default function SiteBuilderPage() {
             fontFamily: getFontFamily(theme.fontFamily),
             '--preview-primary': theme.primaryColor,
             '--preview-radius': `${theme.borderRadius}px`,
-            background: theme.siteBg,
+            backgroundColor: theme.siteBg,
+            backgroundImage: theme.siteBgImage ? `url(${theme.siteBgImage})` : undefined,
+            backgroundSize: 'cover',
+            backgroundAttachment: 'local',
+            backgroundPosition: 'center',
             transform: `scale(${zoom / 100})`,
             transformOrigin: 'top center',
           } as React.CSSProperties}
         >
+          {theme.customCss && <style>{theme.customCss}</style>}
           <div className={`preview-block-header ${selection?.type === 'header' ? 'selected' : ''}`} onClick={() => setSelection({ type: 'header' })}>
             <div
               className={`preview-site-header ${theme.headerStyle === 'dark' ? 'dark' : ''} nav-${theme.headerNavAlign}`}
@@ -1091,7 +1108,7 @@ export default function SiteBuilderPage() {
             </div>
           </div>
 
-          {activePage.sections.length === 0 && <div className="preview-empty">Добавьте первую секцию</div>}
+          {activePage.sections.length === 0 && <div className="preview-empty">Р”РѕР±Р°РІСЊС‚Рµ РїРµСЂРІСѓСЋ СЃРµРєС†РёСЋ</div>}
 
           {activePage.sections.map((section) => (
             <section
@@ -1112,7 +1129,7 @@ export default function SiteBuilderPage() {
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => { event.stopPropagation(); dropElement(section.id, column.id); }}
                   >
-                    {column.elements.length === 0 && <div className="column-empty">Перетащите или добавьте элемент</div>}
+                    {column.elements.length === 0 && <div className="column-empty">РџРµСЂРµС‚Р°С‰РёС‚Рµ РёР»Рё РґРѕР±Р°РІСЊС‚Рµ СЌР»РµРјРµРЅС‚</div>}
                     {column.elements.map((element) => (
                       <div
                         key={element.id}
@@ -1139,8 +1156,8 @@ export default function SiteBuilderPage() {
       {rightPanelOpen && (
       <div className="constructor-right">
         <div className="props-collapse-row">
-          <button className="panel-toggle-btn" type="button" onClick={() => setRightPanelOpen(false)} title="Скрыть панель свойств">
-            →
+          <button className="panel-toggle-btn" type="button" onClick={() => setRightPanelOpen(false)} title="РЎРєСЂС‹С‚СЊ РїР°РЅРµР»СЊ СЃРІРѕР№СЃС‚РІ">
+            в†’
           </button>
         </div>
         <PropertiesPanel
@@ -1191,7 +1208,7 @@ function ElementPreview({ element, tours, slug, primary }: { element: BuilderEle
     return (
       <div style={{ textAlign: element.style.align || 'left' }}>
         <button className="b-el-button outline" type="button" style={css}>
-          ← {element.data.text || 'Назад'}
+          в†ђ {element.data.text || 'РќР°Р·Р°Рґ'}
         </button>
       </div>
     );
@@ -1200,13 +1217,13 @@ function ElementPreview({ element, tours, slug, primary }: { element: BuilderEle
     return element.data.src ? (
       <img className="b-el-image" src={element.data.src} alt={element.data.alt || ''} style={{ ...css, objectFit: element.data.fit || 'cover' }} />
     ) : (
-      <div className="b-el-image-placeholder" style={css}>Изображение</div>
+      <div className="b-el-image-placeholder" style={css}>РР·РѕР±СЂР°Р¶РµРЅРёРµ</div>
     );
   }
   if (element.type === 'gallery') {
     return (
       <div className="b-el-gallery" style={css}>
-        {(element.data.images || []).length === 0 ? <div className="b-el-image-placeholder">Галерея</div> : (
+        {(element.data.images || []).length === 0 ? <div className="b-el-image-placeholder">Р“Р°Р»РµСЂРµСЏ</div> : (
           <div className="b-el-gallery-grid" style={{ gridTemplateColumns: `repeat(${element.data.columns || 3}, 1fr)` }}>
             {element.data.images.map((url: string, index: number) => <div key={index} className="b-el-gallery-img" style={{ backgroundImage: `url(${url})`, borderRadius: element.style.radius }} />)}
           </div>
@@ -1217,7 +1234,7 @@ function ElementPreview({ element, tours, slug, primary }: { element: BuilderEle
   if (element.type === 'video') {
     return (
       <div className="b-el-video" style={css}>
-        {element.data.url ? <iframe src={element.data.url} title={element.data.title || 'Видео'} /> : <div className="b-el-image-placeholder">Видео</div>}
+        {element.data.url ? <iframe src={element.data.url} title={element.data.title || 'Р’РёРґРµРѕ'} /> : <div className="b-el-image-placeholder">Р’РёРґРµРѕ</div>}
       </div>
     );
   }
@@ -1257,7 +1274,7 @@ function ElementPreview({ element, tours, slug, primary }: { element: BuilderEle
       <form className="b-el-form" style={css}>
         <h3>{element.data.heading}</h3>
         {(element.data.fields || []).map((field: string) => <input key={field} placeholder={field} />)}
-        <button type="button">{element.data.buttonText || 'Отправить'}</button>
+        <button type="button">{element.data.buttonText || 'РћС‚РїСЂР°РІРёС‚СЊ'}</button>
       </form>
     );
   }
@@ -1282,7 +1299,7 @@ function ElementPreview({ element, tours, slug, primary }: { element: BuilderEle
             <a key={tour.id} className="b-el-tour-card" href={`/s/${slug}/excursion/${tour.id}`}>
               <strong>{tour.title}</strong>
               <span>{tour.city}</span>
-              <small>{tour.duration} мин · {((tour.distance || 0) / 1000).toFixed(1)} км</small>
+              <small>{tour.duration} РјРёРЅ В· {((tour.distance || 0) / 1000).toFixed(1)} РєРј</small>
             </a>
           ))}
         </div>
@@ -1293,9 +1310,9 @@ function ElementPreview({ element, tours, slug, primary }: { element: BuilderEle
     <div className="b-el-contacts" style={css}>
       <h2>{element.data.heading}</h2>
       {element.data.email && <p>Email: {element.data.email}</p>}
-      {element.data.phone && <p>Телефон: {element.data.phone}</p>}
+      {element.data.phone && <p>РўРµР»РµС„РѕРЅ: {element.data.phone}</p>}
       {element.data.telegram && <p>Telegram: {element.data.telegram}</p>}
-      {element.data.address && <p>Адрес: {element.data.address}</p>}
+      {element.data.address && <p>РђРґСЂРµСЃ: {element.data.address}</p>}
     </div>
   );
 }
@@ -1303,37 +1320,53 @@ function ElementPreview({ element, tours, slug, primary }: { element: BuilderEle
 function ThemeEditor({ theme, setTheme, siteTitle, uploadSingleImage }: { theme: ThemeConfig; setTheme: (theme: ThemeConfig) => void; siteTitle: string; uploadSingleImage: (callback: (url: string) => void) => void }) {
   return (
     <div className="theme-form">
-      <p className="panel-label">Оформление</p>
-      <ColorField label="Основной цвет" value={theme.primaryColor} onChange={(primaryColor) => setTheme({ ...theme, primaryColor })} />
+      <p className="panel-label">РћС„РѕСЂРјР»РµРЅРёРµ</p>
+      <ColorField label="РћСЃРЅРѕРІРЅРѕР№ С†РІРµС‚" value={theme.primaryColor} onChange={(primaryColor) => setTheme({ ...theme, primaryColor })} />
       <div className="theme-field">
-        <label>Шрифт</label>
+        <label>РЁСЂРёС„С‚</label>
         <select className="theme-select" value={theme.fontFamily} onChange={(event) => setTheme({ ...theme, fontFamily: event.target.value })}>
-          <option value="system">Системный</option>
+          <option value="system">РЎРёСЃС‚РµРјРЅС‹Р№</option>
           <option value="serif">Serif</option>
           <option value="mono">Monospace</option>
         </select>
       </div>
-      <NumberField label="Скругление по умолчанию" value={Number(theme.borderRadius)} onChange={(borderRadius) => setTheme({ ...theme, borderRadius: String(borderRadius) })} min={0} max={32} />
+      <NumberField label="РЎРєСЂСѓРіР»РµРЅРёРµ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ" value={Number(theme.borderRadius)} onChange={(borderRadius) => setTheme({ ...theme, borderRadius: String(borderRadius) })} min={0} max={32} />
       <div className="theme-field">
-        <label>Стиль шапки</label>
+        <label>РЎС‚РёР»СЊ С€Р°РїРєРё</label>
         <select className="theme-select" value={theme.headerStyle} onChange={(event) => setTheme({ ...theme, headerStyle: event.target.value as 'light' | 'dark' })}>
-          <option value="light">Светлая</option>
-          <option value="dark">Темная</option>
+          <option value="light">РЎРІРµС‚Р»Р°СЏ</option>
+          <option value="dark">РўРµРјРЅР°СЏ</option>
         </select>
       </div>
-      <Input label="Текст логотипа" value={theme.logoText} placeholder={siteTitle} onChange={(event) => setTheme({ ...theme, logoText: event.target.value })} />
-      <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((logoImage) => setTheme({ ...theme, logoImage }))}>Загрузить логотип</Button>
-      {theme.logoImage && <Button variant="ghost" size="sm" onClick={() => setTheme({ ...theme, logoImage: '' })}>Убрать логотип</Button>}
+      <Input label="РўРµРєСЃС‚ Р»РѕРіРѕС‚РёРїР°" value={theme.logoText} placeholder={siteTitle} onChange={(event) => setTheme({ ...theme, logoText: event.target.value })} />
+      <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((logoImage) => setTheme({ ...theme, logoImage }))}>Р—Р°РіСЂСѓР·РёС‚СЊ Р»РѕРіРѕС‚РёРї</Button>
+      {theme.logoImage && <Button variant="ghost" size="sm" onClick={() => setTheme({ ...theme, logoImage: '' })}>РЈР±СЂР°С‚СЊ Р»РѕРіРѕС‚РёРї</Button>}
     </div>
   );
 }
 
-function GeneralThemeEditor({ theme, setTheme }: { theme: ThemeConfig; setTheme: (theme: ThemeConfig) => void }) {
+function GeneralThemeEditor({
+  theme,
+  setTheme,
+  siteSlug,
+  setSiteSlug,
+  uploadSingleImage,
+}: {
+  theme: ThemeConfig;
+  setTheme: (theme: ThemeConfig) => void;
+  siteSlug: string;
+  setSiteSlug: (slug: string) => void;
+  uploadSingleImage: (callback: (url: string) => void) => void;
+}) {
   return (
     <div className="theme-form">
       <p className="panel-label">Общие настройки</p>
+      <Input label="Адрес сайта" value={siteSlug} onChange={(event) => setSiteSlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))} />
+      <p className="field-hint">Сайт будет открываться по ссылке /s/{siteSlug || '...'}</p>
       <ColorField label="Основной цвет" value={theme.primaryColor} onChange={(primaryColor) => setTheme({ ...theme, primaryColor })} />
       <ColorField label="Фон сайта" value={theme.siteBg} onChange={(siteBg) => setTheme({ ...theme, siteBg })} />
+      <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((siteBgImage) => setTheme({ ...theme, siteBgImage }))}>Загрузить фон сайта</Button>
+      {theme.siteBgImage && <Button variant="ghost" size="sm" onClick={() => setTheme({ ...theme, siteBgImage: '' })}>Убрать фон-картинку</Button>}
       <div className="theme-field">
         <label>Шрифт</label>
         <select className="theme-select" value={theme.fontFamily} onChange={(event) => setTheme({ ...theme, fontFamily: event.target.value })}>
@@ -1343,40 +1376,40 @@ function GeneralThemeEditor({ theme, setTheme }: { theme: ThemeConfig; setTheme:
         </select>
       </div>
       <NumberField label="Скругление по умолчанию" value={Number(theme.borderRadius)} onChange={(borderRadius) => setTheme({ ...theme, borderRadius: String(borderRadius) })} min={0} max={32} />
+      <Textarea label="Пользовательский CSS" value={theme.customCss} rows={7} onChange={(event) => setTheme({ ...theme, customCss: event.target.value })} placeholder=".builder-section { ... }" />
     </div>
   );
 }
-
 function HeaderEditor({ theme, setTheme, siteTitle, uploadSingleImage }: { theme: ThemeConfig; setTheme: (theme: ThemeConfig) => void; siteTitle: string; uploadSingleImage: (callback: (url: string) => void) => void }) {
   return (
     <div className="theme-form">
-      <p className="panel-label">Оформление шапки</p>
-      <ColorField label="Фон шапки" value={theme.headerBg} onChange={(headerBg) => setTheme({ ...theme, headerBg })} />
-      <ColorField label="Цвет текста" value={theme.headerTextColor} onChange={(headerTextColor) => setTheme({ ...theme, headerTextColor })} />
-      <Input label="Текст логотипа" value={theme.logoText} placeholder={siteTitle} onChange={(event) => setTheme({ ...theme, logoText: event.target.value })} />
-      <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((logoImage) => setTheme({ ...theme, logoImage }))}>Загрузить логотип</Button>
-      {theme.logoImage && <Button variant="ghost" size="sm" onClick={() => setTheme({ ...theme, logoImage: '' })}>Убрать логотип</Button>}
+      <p className="panel-label">РћС„РѕСЂРјР»РµРЅРёРµ С€Р°РїРєРё</p>
+      <ColorField label="Р¤РѕРЅ С€Р°РїРєРё" value={theme.headerBg} onChange={(headerBg) => setTheme({ ...theme, headerBg })} />
+      <ColorField label="Р¦РІРµС‚ С‚РµРєСЃС‚Р°" value={theme.headerTextColor} onChange={(headerTextColor) => setTheme({ ...theme, headerTextColor })} />
+      <Input label="РўРµРєСЃС‚ Р»РѕРіРѕС‚РёРїР°" value={theme.logoText} placeholder={siteTitle} onChange={(event) => setTheme({ ...theme, logoText: event.target.value })} />
+      <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((logoImage) => setTheme({ ...theme, logoImage }))}>Р—Р°РіСЂСѓР·РёС‚СЊ Р»РѕРіРѕС‚РёРї</Button>
+      {theme.logoImage && <Button variant="ghost" size="sm" onClick={() => setTheme({ ...theme, logoImage: '' })}>РЈР±СЂР°С‚СЊ Р»РѕРіРѕС‚РёРї</Button>}
       <label className="check-field">
         <input type="checkbox" checked={theme.headerNavVisible} onChange={(event) => setTheme({ ...theme, headerNavVisible: event.target.checked })} />
-        Показывать ссылки
+        РџРѕРєР°Р·С‹РІР°С‚СЊ СЃСЃС‹Р»РєРё
       </label>
       <div className="theme-field">
-        <label>Расположение ссылок</label>
+        <label>Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ СЃСЃС‹Р»РѕРє</label>
         <select className="theme-select" value={theme.headerNavAlign} onChange={(event) => setTheme({ ...theme, headerNavAlign: event.target.value as ThemeConfig['headerNavAlign'] })}>
-          <option value="left">Слева</option>
-          <option value="center">По центру</option>
-          <option value="right">Справа</option>
+          <option value="left">РЎР»РµРІР°</option>
+          <option value="center">РџРѕ С†РµРЅС‚СЂСѓ</option>
+          <option value="right">РЎРїСЂР°РІР°</option>
         </select>
       </div>
       <div className="theme-field">
-        <label>Вид ссылок</label>
+        <label>Р’РёРґ СЃСЃС‹Р»РѕРє</label>
         <select className="theme-select" value={theme.headerNavStyle} onChange={(event) => setTheme({ ...theme, headerNavStyle: event.target.value as ThemeConfig['headerNavStyle'] })}>
-          <option value="links">Текст</option>
-          <option value="pills">Кнопки</option>
-          <option value="underline">Подчеркивание</option>
+          <option value="links">РўРµРєСЃС‚</option>
+          <option value="pills">РљРЅРѕРїРєРё</option>
+          <option value="underline">РџРѕРґС‡РµСЂРєРёРІР°РЅРёРµ</option>
         </select>
       </div>
-      <NumberField label="Расстояние между ссылками" value={Number(theme.headerNavGap)} onChange={(headerNavGap) => setTheme({ ...theme, headerNavGap: String(headerNavGap) })} min={0} max={48} />
+      <NumberField label="Р Р°СЃСЃС‚РѕСЏРЅРёРµ РјРµР¶РґСѓ СЃСЃС‹Р»РєР°РјРё" value={Number(theme.headerNavGap)} onChange={(headerNavGap) => setTheme({ ...theme, headerNavGap: String(headerNavGap) })} min={0} max={48} />
     </div>
   );
 }
@@ -1406,7 +1439,7 @@ function PropertiesPanel(props: {
     <>
       {selected?.kind === 'header' && (
         <>
-          <div className="props-header"><span className="props-icon">≡</span><h3>Шапка сайта</h3></div>
+          <div className="props-header"><span className="props-icon">в‰Ў</span><h3>РЁР°РїРєР° СЃР°Р№С‚Р°</h3></div>
           <div className="props-body">
             <HeaderEditor theme={props.theme} setTheme={props.setTheme} siteTitle={props.siteTitle} uploadSingleImage={props.uploadSingleImage} />
           </div>
@@ -1415,25 +1448,25 @@ function PropertiesPanel(props: {
 
       {selected?.kind === 'section' && (
         <>
-          <div className="props-header"><span className="props-icon">☰</span><h3>Секция</h3></div>
+          <div className="props-header"><span className="props-icon">в°</span><h3>РЎРµРєС†РёСЏ</h3></div>
           <div className="props-body">
             <div className="theme-field">
-              <label>Структура</label>
+              <label>РЎС‚СЂСѓРєС‚СѓСЂР°</label>
               <select className="theme-select" value={selected.section.layout} onChange={(event) => props.setSectionLayout(selected.section, event.target.value as SectionLayout)}>
                 {(Object.keys(sectionLayouts) as SectionLayout[]).map((layout) => <option key={layout} value={layout}>{sectionLayouts[layout].label}</option>)}
               </select>
             </div>
             <StyleEditor style={selected.section.style} onChange={(patch) => props.updateSectionStyle(selected.section.id, patch)} />
-            <Button variant="danger" size="sm" onClick={() => props.deleteSection(selected.section.id)}>Удалить секцию</Button>
+            <Button variant="danger" size="sm" onClick={() => props.deleteSection(selected.section.id)}>РЈРґР°Р»РёС‚СЊ СЃРµРєС†РёСЋ</Button>
           </div>
         </>
       )}
 
       {selected?.kind === 'column' && (
         <>
-          <div className="props-header"><span className="props-icon">▥</span><h3>Колонка</h3></div>
+          <div className="props-header"><span className="props-icon">в–Ґ</span><h3>РљРѕР»РѕРЅРєР°</h3></div>
           <div className="props-body">
-            <NumberField label="Ширина колонки, %" value={selected.column.width} min={10} max={100} onChange={(width) => props.updateColumn(selected.section.id, selected.column.id, { width })} />
+            <NumberField label="РЁРёСЂРёРЅР° РєРѕР»РѕРЅРєРё, %" value={selected.column.width} min={10} max={100} onChange={(width) => props.updateColumn(selected.section.id, selected.column.id, { width })} />
             <StyleEditor style={selected.column.style} onChange={(patch) => props.updateColumnStyle(selected.section.id, selected.column.id, patch)} compact />
           </div>
         </>
@@ -1445,20 +1478,20 @@ function PropertiesPanel(props: {
           <div className="props-body">
             <ElementEditor element={selected.element} tours={props.tours} updateData={props.updateElementData} uploadSingleImage={props.uploadSingleImage} uploadGallery={props.uploadGallery} />
             <StyleEditor style={selected.element.style} onChange={(patch) => props.updateElementStyle(selected.element.id, patch)} compact />
-            <Button variant="danger" size="sm" onClick={() => props.deleteElement(selected.element.id)}>Удалить элемент</Button>
+            <Button variant="danger" size="sm" onClick={() => props.deleteElement(selected.element.id)}>РЈРґР°Р»РёС‚СЊ СЌР»РµРјРµРЅС‚</Button>
           </div>
         </>
       )}
 
       {!selected && (
         <div className="props-empty-state">
-          <p>Выберите секцию, колонку или элемент в предпросмотре для настройки</p>
+          <p>Р’С‹Р±РµСЂРёС‚Рµ СЃРµРєС†РёСЋ, РєРѕР»РѕРЅРєСѓ РёР»Рё СЌР»РµРјРµРЅС‚ РІ РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂРµ РґР»СЏ РЅР°СЃС‚СЂРѕР№РєРё</p>
         </div>
       )}
 
       <div className="page-settings">
-        <h4>Настройки страницы</h4>
-        <Input label="Название" value={props.activePage.title} onChange={(event) => props.updatePageField('title', event.target.value)} />
+        <h4>РќР°СЃС‚СЂРѕР№РєРё СЃС‚СЂР°РЅРёС†С‹</h4>
+        <Input label="РќР°Р·РІР°РЅРёРµ" value={props.activePage.title} onChange={(event) => props.updatePageField('title', event.target.value)} />
         <Input label="URL" value={props.activePage.slug} onChange={(event) => props.updatePageField('slug', event.target.value)} />
       </div>
     </>
@@ -1469,9 +1502,9 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
   if (element.type === 'heading') {
     return (
       <>
-        <Input label="Текст" value={element.data.text} onChange={(event) => updateData(element.id, 'text', event.target.value)} />
+        <Input label="РўРµРєСЃС‚" value={element.data.text} onChange={(event) => updateData(element.id, 'text', event.target.value)} />
         <div className="theme-field">
-          <label>Уровень</label>
+          <label>РЈСЂРѕРІРµРЅСЊ</label>
           <select className="theme-select" value={element.data.level} onChange={(event) => updateData(element.id, 'level', event.target.value)}>
             <option value="h1">H1</option>
             <option value="h2">H2</option>
@@ -1482,18 +1515,18 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
     );
   }
   if (element.type === 'text') {
-    return <Textarea label="Текст" value={element.data.text} onChange={(event) => updateData(element.id, 'text', event.target.value)} style={{ minHeight: 130 }} />;
+    return <Textarea label="РўРµРєСЃС‚" value={element.data.text} onChange={(event) => updateData(element.id, 'text', event.target.value)} style={{ minHeight: 130 }} />;
   }
   if (element.type === 'button') {
     return (
       <>
-        <Input label="Текст кнопки" value={element.data.text} onChange={(event) => updateData(element.id, 'text', event.target.value)} />
-        <Input label="Ссылка" value={element.data.href} onChange={(event) => updateData(element.id, 'href', event.target.value)} />
+        <Input label="РўРµРєСЃС‚ РєРЅРѕРїРєРё" value={element.data.text} onChange={(event) => updateData(element.id, 'text', event.target.value)} />
+        <Input label="РЎСЃС‹Р»РєР°" value={element.data.href} onChange={(event) => updateData(element.id, 'href', event.target.value)} />
         <div className="theme-field">
-          <label>Вид</label>
+          <label>Р’РёРґ</label>
           <select className="theme-select" value={element.data.variant} onChange={(event) => updateData(element.id, 'variant', event.target.value)}>
-            <option value="filled">Заливка</option>
-            <option value="outline">Контур</option>
+            <option value="filled">Р—Р°Р»РёРІРєР°</option>
+            <option value="outline">РљРѕРЅС‚СѓСЂ</option>
           </select>
         </div>
       </>
@@ -1502,23 +1535,23 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
   if (element.type === 'backButton') {
     return (
       <>
-        <Input label="Текст" value={element.data.text} onChange={(event) => updateData(element.id, 'text', event.target.value)} />
+        <Input label="РўРµРєСЃС‚" value={element.data.text} onChange={(event) => updateData(element.id, 'text', event.target.value)} />
         <div className="theme-field">
-          <label>Действие</label>
+          <label>Р”РµР№СЃС‚РІРёРµ</label>
           <select className="theme-select" value={element.data.mode} onChange={(event) => updateData(element.id, 'mode', event.target.value)}>
-            <option value="history">История браузера</option>
-            <option value="link">Ссылка</option>
+            <option value="history">РСЃС‚РѕСЂРёСЏ Р±СЂР°СѓР·РµСЂР°</option>
+            <option value="link">РЎСЃС‹Р»РєР°</option>
           </select>
         </div>
-        {element.data.mode === 'link' && <Input label="Ссылка" value={element.data.href} onChange={(event) => updateData(element.id, 'href', event.target.value)} />}
+        {element.data.mode === 'link' && <Input label="РЎСЃС‹Р»РєР°" value={element.data.href} onChange={(event) => updateData(element.id, 'href', event.target.value)} />}
       </>
     );
   }
   if (element.type === 'image') {
     return (
       <>
-        <Input label="URL изображения" value={element.data.src?.startsWith('data:') ? '' : element.data.src || ''} onChange={(event) => updateData(element.id, 'src', event.target.value)} />
-        <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((src) => updateData(element.id, 'src', src))}>Загрузить изображение</Button>
+        <Input label="URL РёР·РѕР±СЂР°Р¶РµРЅРёСЏ" value={element.data.src?.startsWith('data:') ? '' : element.data.src || ''} onChange={(event) => updateData(element.id, 'src', event.target.value)} />
+        <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((src) => updateData(element.id, 'src', src))}>Р—Р°РіСЂСѓР·РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ</Button>
         <Input label="Alt" value={element.data.alt || ''} onChange={(event) => updateData(element.id, 'alt', event.target.value)} />
       </>
     );
@@ -1526,9 +1559,9 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
   if (element.type === 'gallery') {
     return (
       <>
-        <NumberField label="Колонок в галерее" value={element.data.columns || 3} min={1} max={6} onChange={(columns) => updateData(element.id, 'columns', columns)} />
-        <Button variant="secondary" size="sm" onClick={() => uploadGallery(element)}>Загрузить изображения</Button>
-        <Textarea label="URL изображений" value={(element.data.images || []).filter((url: string) => !url.startsWith('data:')).join('\n')} onChange={(event) => {
+        <NumberField label="РљРѕР»РѕРЅРѕРє РІ РіР°Р»РµСЂРµРµ" value={element.data.columns || 3} min={1} max={6} onChange={(columns) => updateData(element.id, 'columns', columns)} />
+        <Button variant="secondary" size="sm" onClick={() => uploadGallery(element)}>Р—Р°РіСЂСѓР·РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ</Button>
+        <Textarea label="URL РёР·РѕР±СЂР°Р¶РµРЅРёР№" value={(element.data.images || []).filter((url: string) => !url.startsWith('data:')).join('\n')} onChange={(event) => {
           const dataUrls = (element.data.images || []).filter((url: string) => url.startsWith('data:'));
           updateData(element.id, 'images', [...dataUrls, ...event.target.value.split('\n').filter(Boolean)]);
         }} />
@@ -1539,37 +1572,37 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
     return (
       <>
         <Input label="Embed URL" value={element.data.url} placeholder="https://www.youtube.com/embed/..." onChange={(event) => updateData(element.id, 'url', event.target.value)} />
-        <Input label="Название" value={element.data.title} onChange={(event) => updateData(element.id, 'title', event.target.value)} />
+        <Input label="РќР°Р·РІР°РЅРёРµ" value={element.data.title} onChange={(event) => updateData(element.id, 'title', event.target.value)} />
       </>
     );
   }
   if (element.type === 'divider') {
     return (
       <>
-        <NumberField label="Толщина линии" value={element.data.thickness || 1} min={1} max={12} onChange={(thickness) => updateData(element.id, 'thickness', thickness)} />
+        <NumberField label="РўРѕР»С‰РёРЅР° Р»РёРЅРёРё" value={element.data.thickness || 1} min={1} max={12} onChange={(thickness) => updateData(element.id, 'thickness', thickness)} />
         <div className="theme-field">
-          <label>Стиль</label>
+          <label>РЎС‚РёР»СЊ</label>
           <select className="theme-select" value={element.data.lineStyle || 'solid'} onChange={(event) => updateData(element.id, 'lineStyle', event.target.value)}>
-            <option value="solid">Сплошная</option>
-            <option value="dashed">Пунктир</option>
-            <option value="dotted">Точки</option>
+            <option value="solid">РЎРїР»РѕС€РЅР°СЏ</option>
+            <option value="dashed">РџСѓРЅРєС‚РёСЂ</option>
+            <option value="dotted">РўРѕС‡РєРё</option>
           </select>
         </div>
       </>
     );
   }
   if (element.type === 'spacer') {
-    return <NumberField label="Высота" value={element.data.height || 40} min={8} max={240} onChange={(height) => updateData(element.id, 'height', height)} />;
+    return <NumberField label="Р’С‹СЃРѕС‚Р°" value={element.data.height || 40} min={8} max={240} onChange={(height) => updateData(element.id, 'height', height)} />;
   }
   if (element.type === 'box') {
-    return <Textarea label="Содержимое бокса" value={element.data.text} onChange={(event) => updateData(element.id, 'text', event.target.value)} style={{ minHeight: 100 }} />;
+    return <Textarea label="РЎРѕРґРµСЂР¶РёРјРѕРµ Р±РѕРєСЃР°" value={element.data.text} onChange={(event) => updateData(element.id, 'text', event.target.value)} style={{ minHeight: 100 }} />;
   }
   if (element.type === 'list') {
     return (
       <>
-        <Input label="Заголовок" value={element.data.heading} onChange={(event) => updateData(element.id, 'heading', event.target.value)} />
-        <Textarea label="Пункты, каждый с новой строки" value={(element.data.items || []).join('\n')} onChange={(event) => updateData(element.id, 'items', event.target.value.split('\n').filter(Boolean))} />
-        <label className="tour-select-item"><input type="checkbox" checked={!!element.data.ordered} onChange={(event) => updateData(element.id, 'ordered', event.target.checked)} /> <span>Нумерованный список</span></label>
+        <Input label="Р—Р°РіРѕР»РѕРІРѕРє" value={element.data.heading} onChange={(event) => updateData(element.id, 'heading', event.target.value)} />
+        <Textarea label="РџСѓРЅРєС‚С‹, РєР°Р¶РґС‹Р№ СЃ РЅРѕРІРѕР№ СЃС‚СЂРѕРєРё" value={(element.data.items || []).join('\n')} onChange={(event) => updateData(element.id, 'items', event.target.value.split('\n').filter(Boolean))} />
+        <label className="tour-select-item"><input type="checkbox" checked={!!element.data.ordered} onChange={(event) => updateData(element.id, 'ordered', event.target.checked)} /> <span>РќСѓРјРµСЂРѕРІР°РЅРЅС‹Р№ СЃРїРёСЃРѕРє</span></label>
       </>
     );
   }
@@ -1580,10 +1613,10 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
           <Input key={name} label={name} value={element.data[name] || ''} onChange={(event) => updateData(element.id, name, event.target.value)} />
         ))}
         <div className="theme-field">
-          <label>Вид</label>
+          <label>Р’РёРґ</label>
           <select className="theme-select" value={element.data.style || 'filled'} onChange={(event) => updateData(element.id, 'style', event.target.value)}>
-            <option value="filled">Цветные кнопки</option>
-            <option value="mono">Монохром</option>
+            <option value="filled">Р¦РІРµС‚РЅС‹Рµ РєРЅРѕРїРєРё</option>
+            <option value="mono">РњРѕРЅРѕС…СЂРѕРј</option>
           </select>
         </div>
       </>
@@ -1592,43 +1625,43 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
   if (element.type === 'menu') {
     return (
       <>
-        <Input label="ID якоря" value={element.data.anchor} onChange={(event) => updateData(element.id, 'anchor', event.target.value)} />
-        <Input label="Подпись" value={element.data.label} onChange={(event) => updateData(element.id, 'label', event.target.value)} />
+        <Input label="ID СЏРєРѕСЂСЏ" value={element.data.anchor} onChange={(event) => updateData(element.id, 'anchor', event.target.value)} />
+        <Input label="РџРѕРґРїРёСЃСЊ" value={element.data.label} onChange={(event) => updateData(element.id, 'label', event.target.value)} />
       </>
     );
   }
   if (element.type === 'form') {
     return (
       <>
-        <Input label="Заголовок" value={element.data.heading} onChange={(event) => updateData(element.id, 'heading', event.target.value)} />
-        <Textarea label="Поля формы" value={(element.data.fields || []).join('\n')} onChange={(event) => updateData(element.id, 'fields', event.target.value.split('\n').filter(Boolean))} />
-        <Input label="Текст кнопки" value={element.data.buttonText} onChange={(event) => updateData(element.id, 'buttonText', event.target.value)} />
+        <Input label="Р—Р°РіРѕР»РѕРІРѕРє" value={element.data.heading} onChange={(event) => updateData(element.id, 'heading', event.target.value)} />
+        <Textarea label="РџРѕР»СЏ С„РѕСЂРјС‹" value={(element.data.fields || []).join('\n')} onChange={(event) => updateData(element.id, 'fields', event.target.value.split('\n').filter(Boolean))} />
+        <Input label="РўРµРєСЃС‚ РєРЅРѕРїРєРё" value={element.data.buttonText} onChange={(event) => updateData(element.id, 'buttonText', event.target.value)} />
       </>
     );
   }
   if (element.type === 'map') {
     return (
       <>
-        <Input label="Адрес" value={element.data.address} onChange={(event) => updateData(element.id, 'address', event.target.value)} />
-        <Input label="Широта" value={String(element.data.lat || '')} onChange={(event) => updateData(element.id, 'lat', Number(event.target.value))} />
-        <Input label="Долгота" value={String(element.data.lng || '')} onChange={(event) => updateData(element.id, 'lng', Number(event.target.value))} />
-        <NumberField label="Масштаб карты" value={element.data.zoom || 13} min={3} max={18} onChange={(zoom) => updateData(element.id, 'zoom', zoom)} />
+        <Input label="РђРґСЂРµСЃ" value={element.data.address} onChange={(event) => updateData(element.id, 'address', event.target.value)} />
+        <Input label="РЁРёСЂРѕС‚Р°" value={String(element.data.lat || '')} onChange={(event) => updateData(element.id, 'lat', Number(event.target.value))} />
+        <Input label="Р”РѕР»РіРѕС‚Р°" value={String(element.data.lng || '')} onChange={(event) => updateData(element.id, 'lng', Number(event.target.value))} />
+        <NumberField label="РњР°СЃС€С‚Р°Р± РєР°СЂС‚С‹" value={element.data.zoom || 13} min={3} max={18} onChange={(zoom) => updateData(element.id, 'zoom', zoom)} />
       </>
     );
   }
   if (element.type === 'embed') {
-    return <Textarea label="Код / HTML" value={element.data.code} onChange={(event) => updateData(element.id, 'code', event.target.value)} style={{ minHeight: 120 }} />;
+    return <Textarea label="РљРѕРґ / HTML" value={element.data.code} onChange={(event) => updateData(element.id, 'code', event.target.value)} style={{ minHeight: 120 }} />;
   }
   if (element.type === 'tours') {
     const ids: string[] = element.data.selectedTourIds || [];
     return (
       <>
-        <Input label="Заголовок" value={element.data.heading} onChange={(event) => updateData(element.id, 'heading', event.target.value)} />
-        <NumberField label="Колонок" value={element.data.columns || 2} min={1} max={4} onChange={(columns) => updateData(element.id, 'columns', columns)} />
+        <Input label="Р—Р°РіРѕР»РѕРІРѕРє" value={element.data.heading} onChange={(event) => updateData(element.id, 'heading', event.target.value)} />
+        <NumberField label="РљРѕР»РѕРЅРѕРє" value={element.data.columns || 2} min={1} max={4} onChange={(columns) => updateData(element.id, 'columns', columns)} />
         <div className="tour-select-list">
           <label className="tour-select-item">
             <input type="checkbox" checked={ids.length === 0} onChange={() => updateData(element.id, 'selectedTourIds', [])} />
-            <span>Все опубликованные экскурсии</span>
+            <span>Р’СЃРµ РѕРїСѓР±Р»РёРєРѕРІР°РЅРЅС‹Рµ СЌРєСЃРєСѓСЂСЃРёРё</span>
           </label>
           {tours.filter((tour) => tour.status === 'published').map((tour) => (
             <label key={tour.id} className="tour-select-item">
@@ -1646,11 +1679,11 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
   }
   return (
     <>
-      <Input label="Заголовок" value={element.data.heading} onChange={(event) => updateData(element.id, 'heading', event.target.value)} />
+      <Input label="Р—Р°РіРѕР»РѕРІРѕРє" value={element.data.heading} onChange={(event) => updateData(element.id, 'heading', event.target.value)} />
       <Input label="Email" value={element.data.email} onChange={(event) => updateData(element.id, 'email', event.target.value)} />
-      <Input label="Телефон" value={element.data.phone} onChange={(event) => updateData(element.id, 'phone', event.target.value)} />
+      <Input label="РўРµР»РµС„РѕРЅ" value={element.data.phone} onChange={(event) => updateData(element.id, 'phone', event.target.value)} />
       <Input label="Telegram" value={element.data.telegram} onChange={(event) => updateData(element.id, 'telegram', event.target.value)} />
-      <Input label="Адрес" value={element.data.address} onChange={(event) => updateData(element.id, 'address', event.target.value)} />
+      <Input label="РђРґСЂРµСЃ" value={element.data.address} onChange={(event) => updateData(element.id, 'address', event.target.value)} />
     </>
   );
 }
@@ -1658,29 +1691,29 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
 function StyleEditor({ style, onChange, compact }: { style: BuilderStyle; onChange: (patch: BuilderStyle) => void; compact?: boolean }) {
   return (
     <div className="style-editor">
-      <ColorField label="Фон" value={style.background || 'transparent'} onChange={(background) => onChange({ background })} allowTransparent />
-      <ColorField label="Цвет текста" value={style.color || '#0f172a'} onChange={(color) => onChange({ color })} />
-      <NumberField label="Отступ внутри" value={style.padding ?? 0} min={0} max={120} onChange={(padding) => onChange({ padding })} />
-      <NumberField label="Отступ снаружи" value={style.margin ?? 0} min={0} max={80} onChange={(margin) => onChange({ margin })} />
-      <NumberField label="Скругление" value={style.radius ?? 0} min={0} max={48} onChange={(radius) => onChange({ radius })} />
-      {!compact && <NumberField label="Толщина рамки" value={style.borderWidth ?? 0} min={0} max={8} onChange={(borderWidth) => onChange({ borderWidth })} />}
-      {!compact && <ColorField label="Цвет рамки" value={style.borderColor || '#e2e8f0'} onChange={(borderColor) => onChange({ borderColor })} />}
+      <ColorField label="Р¤РѕРЅ" value={style.background || 'transparent'} onChange={(background) => onChange({ background })} allowTransparent />
+      <ColorField label="Р¦РІРµС‚ С‚РµРєСЃС‚Р°" value={style.color || '#0f172a'} onChange={(color) => onChange({ color })} />
+      <NumberField label="РћС‚СЃС‚СѓРї РІРЅСѓС‚СЂРё" value={style.padding ?? 0} min={0} max={120} onChange={(padding) => onChange({ padding })} />
+      <NumberField label="РћС‚СЃС‚СѓРї СЃРЅР°СЂСѓР¶Рё" value={style.margin ?? 0} min={0} max={80} onChange={(margin) => onChange({ margin })} />
+      <NumberField label="РЎРєСЂСѓРіР»РµРЅРёРµ" value={style.radius ?? 0} min={0} max={48} onChange={(radius) => onChange({ radius })} />
+      {!compact && <NumberField label="РўРѕР»С‰РёРЅР° СЂР°РјРєРё" value={style.borderWidth ?? 0} min={0} max={8} onChange={(borderWidth) => onChange({ borderWidth })} />}
+      {!compact && <ColorField label="Р¦РІРµС‚ СЂР°РјРєРё" value={style.borderColor || '#e2e8f0'} onChange={(borderColor) => onChange({ borderColor })} />}
       <div className="theme-field">
-        <label>Тень</label>
+        <label>РўРµРЅСЊ</label>
         <select className="theme-select" value={style.shadow || 'none'} onChange={(event) => onChange({ shadow: event.target.value })}>
-          <option value="none">Нет</option>
-          <option value="0 8px 24px rgba(15,23,42,0.12)">Мягкая</option>
-          <option value="0 16px 40px rgba(15,23,42,0.18)">Выраженная</option>
+          <option value="none">РќРµС‚</option>
+          <option value="0 8px 24px rgba(15,23,42,0.12)">РњСЏРіРєР°СЏ</option>
+          <option value="0 16px 40px rgba(15,23,42,0.18)">Р’С‹СЂР°Р¶РµРЅРЅР°СЏ</option>
         </select>
       </div>
-      <NumberField label="Размер текста" value={style.fontSize ?? 0} min={0} max={72} onChange={(fontSize) => onChange({ fontSize: fontSize || undefined })} />
-      <NumberField label="Ширина элемента, %" value={style.width ?? 100} min={10} max={100} onChange={(width) => onChange({ width })} />
+      <NumberField label="Р Р°Р·РјРµСЂ С‚РµРєСЃС‚Р°" value={style.fontSize ?? 0} min={0} max={72} onChange={(fontSize) => onChange({ fontSize: fontSize || undefined })} />
+      <NumberField label="РЁРёСЂРёРЅР° СЌР»РµРјРµРЅС‚Р°, %" value={style.width ?? 100} min={10} max={100} onChange={(width) => onChange({ width })} />
       <div className="theme-field">
-        <label>Выравнивание</label>
+        <label>Р’С‹СЂР°РІРЅРёРІР°РЅРёРµ</label>
         <select className="theme-select" value={style.align || 'left'} onChange={(event) => onChange({ align: event.target.value as BuilderStyle['align'] })}>
-          <option value="left">Слева</option>
-          <option value="center">По центру</option>
-          <option value="right">Справа</option>
+          <option value="left">РЎР»РµРІР°</option>
+          <option value="center">РџРѕ С†РµРЅС‚СЂСѓ</option>
+          <option value="right">РЎРїСЂР°РІР°</option>
         </select>
       </div>
     </div>
@@ -1725,3 +1758,4 @@ function ColorField({ label, value, onChange, allowTransparent }: { label: strin
     </div>
   );
 }
+

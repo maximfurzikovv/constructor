@@ -64,6 +64,10 @@
   display: flex;
   flex-direction: column;
   background: var(--sc-site-bg, #fff);
+  background-image: var(--sc-site-bg-image, none);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
 .sc-header {

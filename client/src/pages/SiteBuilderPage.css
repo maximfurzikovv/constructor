@@ -4,12 +4,16 @@
   display: flex;
   height: calc(100vh - 48px);
   margin: -24px;
+  width: calc(100% + 48px);
+  max-width: calc(100% + 48px);
+  overflow: hidden;
 }
 
 /* ─── Left panel ─── */
 
 .constructor-left {
   width: 420px;
+  max-width: min(420px, 42vw);
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   display: flex;
@@ -370,6 +374,7 @@
 
 .constructor-preview {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: #e2e8f0;
@@ -387,6 +392,7 @@
   gap: 10px;
   min-height: 56px;
   overflow: hidden;
+  min-width: 0;
 }
 
 .preview-page-tabs {
@@ -434,6 +440,7 @@
   flex-direction: column;
   align-self: center;
   width: calc(100% - 40px);
+  max-width: calc(100% - 40px);
   transition: width 0.2s ease;
 }
 
@@ -700,6 +707,7 @@
 
 .constructor-right {
   width: 300px;
+  max-width: min(300px, 28vw);
   background: var(--color-surface);
   border-left: 1px solid var(--color-border);
   overflow-y: auto;
@@ -864,8 +872,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 0 0 auto;
-  min-width: max-content;
+  flex: 0 1 auto;
+  min-width: 0;
+  justify-content: flex-end;
+  overflow: hidden;
 }
 
 .viewport-switcher {
@@ -905,10 +915,33 @@
 }
 
 .zoom-control span {
-  min-width: 44px;
+  min-width: 40px;
   text-align: center;
   font-size: 12px;
   color: var(--color-text-secondary);
+}
+
+@media (max-width: 1280px) {
+  .constructor-left {
+    width: 340px;
+  }
+
+  .constructor-right {
+    width: 280px;
+  }
+
+  .preview-toolbar {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .preview-actions {
+    gap: 5px;
+  }
+
+  .viewport-switcher button {
+    padding: 5px 7px;
+  }
 }
 
 .builder-toast {
@@ -957,6 +990,12 @@
   gap: 8px;
   font-size: 13px;
   color: var(--color-text-secondary);
+}
+
+.field-hint {
+  margin-top: -6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 .builder-section {
