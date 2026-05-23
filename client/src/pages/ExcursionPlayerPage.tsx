@@ -322,7 +322,7 @@ export default function ExcursionPlayerPage() {
     if (!audio) return;
     audio.currentTime = 0;
     audio.play().catch(() => {
-      setAudioPrompt('Нажмите на аудио, чтобы запустить воспроизведение');
+      setAudioPrompt('Нажмите кнопку воспроизведения в аудиоплеере, чтобы браузер разрешил звук');
     });
   };
 
