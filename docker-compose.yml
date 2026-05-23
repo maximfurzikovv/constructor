@@ -1,0 +1,45 @@
+# Локальная среда: приложение + PostgreSQL:
+services:
+  # PostgreSQL для разработки и проверки без Neon:
+  db:
+    image: postgres:16-alpine
+    container_name: constructor-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: constructor
+      POSTGRES_USER: constructor
+      POSTGRES_PASSWORD: constructor
+    ports:
+      - "55432:5432"
+    volumes:
+      - constructor_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U constructor -d constructor"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Node-приложение с API и собранным React-клиентом:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: constructor-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://constructor:constructor@db:5432/constructor?schema=public
+      JWT_SECRET: local-docker-secret-change-before-production
+    ports:
+      - "3001:3001"
+    volumes:
+      - constructor_uploads:/app/server/uploads
+
+# Постоянные данные БД и загруженные медиа:
+volumes:
+  constructor_pg_data:
+  constructor_uploads:

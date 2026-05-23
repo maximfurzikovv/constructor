@@ -1,0 +1,41 @@
+import { Link } from 'react-router-dom';
+import './LandingPage.css';
+
+// Стартовая страница продукта:
+export default function LandingPage() {
+  return (
+    // Общий экран перед авторизацией:
+    <main className="landing-page">
+      {/* Центральный блок описания: */}
+      <section className="landing-hero">
+        <span className="landing-kicker">Веб-конструктор экскурсий</span>
+        <h1>Конструктор веб-приложений для информационной поддержки индивидуальных экскурсий</h1>
+        <p>
+          Система помогает автору подготовить маршрут, добавить точки интереса, загрузить медиа,
+          оформить сайт-витрину и опубликовать результат для прохождения в браузере.
+        </p>
+        {/* Основные действия для пользователя: */}
+        <div className="landing-actions">
+          <Link className="landing-btn primary" to="/register">Зарегистрироваться</Link>
+          <Link className="landing-btn secondary" to="/login">Войти</Link>
+        </div>
+      </section>
+
+      {/* Краткое объяснение возможностей: */}
+      <section className="landing-features" aria-label="Возможности системы">
+        <article>
+          <strong>Маршруты</strong>
+          <span>Точки, карта, описание, радиус активации и порядок прохождения</span>
+        </article>
+        <article>
+          <strong>Медиа</strong>
+          <span>Изображения, аудио и видео для сопровождения каждой точки</span>
+        </article>
+        <article>
+          <strong>Публикация</strong>
+          <span>Сайт-витрина и экскурсия доступны посетителю по ссылке</span>
+        </article>
+      </section>
+    </main>
+  );
+}
