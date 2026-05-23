@@ -85,21 +85,16 @@ export async function ensureApiServer() {
   const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
   const env = createServerEnv(); // Окружение тестового сервера
   const databaseUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL; // URL тестовой базы
+  const stdio = process.env.TEST_DEBUG ? ['ignore', 'inherit', 'inherit'] : ['ignore', 'ignore', 'ignore']; // Логи включаются флагом
   if (databaseUrl) env.DATABASE_URL = databaseUrl; // Передаем БД только если она есть
   serverProcess = spawn(npmCommand, ['run', 'dev:server:test'], {
     cwd: process.cwd(),
     env,
+    detached: process.platform !== 'win32',
     shell: process.platform === 'win32',
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio,
   });
   serverStartedByTests = true;
-
-  serverProcess.stdout.on('data', (chunk) => {
-    if (process.env.TEST_DEBUG) process.stdout.write(chunk);
-  });
-  serverProcess.stderr.on('data', (chunk) => {
-    if (process.env.TEST_DEBUG) process.stderr.write(chunk);
-  });
 
   await waitForServer();
 }
@@ -109,8 +104,13 @@ export function stopApiServer() {
   if (process.platform === 'win32') {
     spawnSync('taskkill', ['/pid', String(serverProcess.pid), '/T', '/F']); // Останавливаем все дочерние процессы Windows
   } else {
-    serverProcess.kill(); // Останавливаем сервер на Unix
+    try {
+      process.kill(-serverProcess.pid, 'SIGTERM'); // Останавливаем группу процессов Unix
+    } catch {
+      serverProcess.kill('SIGTERM'); // Запасная остановка процесса
+    }
   }
+  serverProcess.unref(); // Не держим event loop тестов
   serverProcess = null;
   serverStartedByTests = false;
 }
