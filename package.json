@@ -12,8 +12,19 @@
   },
   "scripts": {
     "dev:server": "npm run dev --workspace=server",
+    "dev:server:test": "npm run db:push --workspace=server && npm run db:seed --workspace=server && npm run dev:test --workspace=server",
     "dev:client": "npm run dev --workspace=client",
+    "dev:client:test": "npm --prefix client run dev -- --host localhost --port 5174",
+    "test": "npm run test:unit && npm run test:api",
+    "test:unit": "tsx --test tests/unit/authSecurity.test.ts tests/unit/siteBuilderSecurity.test.ts",
+    "test:api": "node --test --test-concurrency=1 tests/api/*.test.mjs",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test:unit && npm run test:api && npm run test:e2e",
     "build": "npm run db:generate --workspace=server && npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=client",
-    "deploy:start": "node server/dist/index.js"
+    "deploy:start": "node server/dist/index.js",
+    "docker:start": "npm run db:push --workspace=server && npm run db:seed --workspace=server && node server/dist/index.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0"
   }
 }

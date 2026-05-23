@@ -17,6 +17,25 @@
   height: 100%;
 }
 
+.tour-card-cover {
+  height: 150px;
+  margin-bottom: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+}
+
+.tour-card-cover.empty-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
 .tour-card-header {
   display: flex;
   align-items: center;

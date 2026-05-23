@@ -4,20 +4,37 @@ import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import { api } from '../api/client';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
+import { sanitizeCustomCss, sanitizeEmbedHtml } from '../utils/contentSecurity';
 import './ShowcaseHomePage.css';
 
+// Обновляет favicon сайта:
+function setFavicon(href: string) {
+  let icon = document.head.querySelector<HTMLLinkElement>('link[rel="icon"]'); // Текущая иконка
+  if (!icon) {
+    icon = document.createElement('link');
+    icon.rel = 'icon';
+    document.head.appendChild(icon);
+  }
+  icon.href = href; // Новый адрес
+}
+
 export default function ShowcaseHomePage() {
+  // Slug определяет опубликованный сайт в адресной строке:
   const { slug } = useParams<{ slug: string }>();
+  // Храним данные опубликованной витрины:
   const [site, setSite] = useState<any>(null);
 
+  // Загружает опубликованный сайт по slug:
   useEffect(() => {
     if (slug) api.getShowcase(slug).then((d: any) => setSite(d));
   }, [slug]);
 
   if (!site) return <p style={{ padding: 40 }}>Загрузка...</p>;
 
+  // Данные конструктора берутся из опубликованной JSON-структуры:
   const cd = site.constructorData;
 
+  // Если сайт собран новым конструктором, рендерим его секциями:
   if (cd && cd.pages && cd.pages.length > 0) {
     return <ConstructorSite site={site} constructorData={cd} slug={slug!} />;
   }
@@ -39,6 +56,7 @@ export default function ShowcaseHomePage() {
         <div className="showcase-tours-grid">
           {(site.excursionDetails || []).map((exc: any) => (
             <Card key={exc.id} className="showcase-tour-card">
+              {exc.coverImage && <div className="showcase-tour-cover" style={{ backgroundImage: `url(${exc.coverImage})` }} />}
               <h3>{exc.title}</h3>
               <p className="stc-city">{exc.city}</p>
               <p className="stc-desc">{exc.description}</p>
@@ -62,17 +80,29 @@ export default function ShowcaseHomePage() {
 }
 
 function ConstructorSite({ site, constructorData, slug }: { site: any; constructorData: any; slug: string }) {
+  // Активная страница опубликованного сайта:
   const [activePageId, setActivePageId] = useState(constructorData.pages[0]?.id || '');
+  // Находим страницу по id или берем первую:
   const activePage = constructorData.pages.find((p: any) => p.id === activePageId) || constructorData.pages[0];
+  // Тема задает общие цвета, фон и шапку:
   const theme = constructorData.theme || {};
+  // Экскурсии нужны для элемента списка туров:
   const excursions = site.excursionDetails || [];
+  // Обновляет заголовок вкладки:
+  useEffect(() => {
+    document.title = activePage.title || site.title; // Название вкладки
+    if (theme.favicon) setFavicon(theme.favicon); // Иконка вкладки
+  }, [activePage.title, site.title, theme.favicon]);
 
+  // Подбирает CSS-шрифт по настройке темы:
   const fontFamily =
     theme.fontFamily === 'serif'
       ? 'Georgia, serif'
       : theme.fontFamily === 'mono'
       ? 'monospace'
       : 'inherit';
+  // Очищаем CSS перед вставкой:
+  const safeCustomCss = sanitizeCustomCss(theme.customCss || '');
 
   return (
     <div
@@ -88,7 +118,9 @@ function ConstructorSite({ site, constructorData, slug }: { site: any; construct
         '--sc-header-gap': `${theme.headerNavGap || 16}px`,
       } as React.CSSProperties}
     >
-      {theme.customCss ? <style>{theme.customCss}</style> : null}
+      {/* Пользовательский CSS применяется к опубликованному сайту: */}
+      {safeCustomCss ? <style>{safeCustomCss}</style> : null}
+      {/* Шапка опубликованного сайта: */}
       <div className={`sc-header ${theme.headerStyle === 'dark' ? 'dark' : ''} nav-${theme.headerNavAlign || 'right'}`}>
         <span className="sc-header-logo">
           {theme.logoImage ? <img src={theme.logoImage} alt="" className="sc-logo-img" /> : null}
@@ -109,9 +141,8 @@ function ConstructorSite({ site, constructorData, slug }: { site: any; construct
         )}
       </div>
 
-      {activePage.sections
-        ? <SectionRenderer page={activePage} excursions={excursions} slug={slug} primary={theme.primaryColor || '#2563eb'} />
-        : <LegacyBlockRenderer page={activePage} excursions={excursions} slug={slug} />}
+      {/* Публичная страница рендерится только из новой структуры секций: */}
+      <SectionRenderer page={activePage} excursions={excursions} slug={slug} primary={theme.primaryColor || '#2563eb'} />
 
       <div className="sc-footer">
         {site.title} &copy; {new Date().getFullYear()}
@@ -123,6 +154,7 @@ function ConstructorSite({ site, constructorData, slug }: { site: any; construct
 function SectionRenderer({ page, excursions, slug, primary }: { page: any; excursions: any[]; slug: string; primary: string }) {
   return (
     <>
+      {/* Каждая секция содержит одну или несколько колонок: */}
       {(page.sections || []).map((section: any) => (
         <section key={section.id} className="sc-builder-section" style={styleToCss(section.style, primary)}>
           <div className="sc-builder-columns">
@@ -141,15 +173,19 @@ function SectionRenderer({ page, excursions, slug, primary }: { page: any; excur
 }
 
 function PublicElement({ element, excursions, slug, primary }: { element: any; excursions: any[]; slug: string; primary: string }) {
+  // Общие стили элемента переводятся в CSS:
   const css = styleToCss(element.style, primary);
 
+  // Заголовок страницы или секции:
   if (element.type === 'heading') {
     const Tag = element.data.level || 'h2';
     return <Tag className="sc-el-heading" style={css}>{element.data.text}</Tag>;
   }
+  // Обычный текстовый блок:
   if (element.type === 'text') {
     return <p className="sc-el-text" style={css}>{element.data.text}</p>;
   }
+  // Ссылка-кнопка для перехода:
   if (element.type === 'button') {
     return (
       <div style={{ textAlign: element.style?.align || 'left' }}>
@@ -159,6 +195,7 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
       </div>
     );
   }
+  // Кнопка возврата назад или перехода по ссылке:
   if (element.type === 'backButton') {
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
       if (element.data.mode === 'link') return;
@@ -175,11 +212,13 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
       </div>
     );
   }
+  // Одиночное изображение:
   if (element.type === 'image') {
     return element.data.src ? (
       <img className="sc-el-image" src={element.data.src} alt={element.data.alt || ''} style={{ ...css, objectFit: element.data.fit || 'cover' }} />
     ) : null;
   }
+  // Галерея изображений:
   if (element.type === 'gallery') {
     return (
       <div className="sc-el-gallery" style={css}>
@@ -191,6 +230,7 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
       </div>
     );
   }
+  // Видеофрагмент через iframe:
   if (element.type === 'video') {
     return (
       <div className="sc-el-video" style={css}>
@@ -198,15 +238,19 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
       </div>
     );
   }
+  // Разделительная линия:
   if (element.type === 'divider') {
     return <hr className="sc-el-divider" style={{ ...css, borderTopWidth: element.data.thickness || 1, borderTopStyle: element.data.lineStyle || 'solid' }} />;
   }
+  // Пустой вертикальный отступ:
   if (element.type === 'spacer') {
     return <div style={{ height: element.data.height || 40 }} />;
   }
+  // Текстовый контейнер с фоном и рамками:
   if (element.type === 'box') {
     return <div className="sc-el-box" style={css}>{String(element.data.text || '').split('\n').map((line: string, index: number) => <p key={index}>{line}</p>)}</div>;
   }
+  // Нумерованный или маркированный список:
   if (element.type === 'list') {
     const ListTag = element.data.ordered ? 'ol' : 'ul';
     return (
@@ -216,6 +260,7 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
       </div>
     );
   }
+  // Социальные ссылки:
   if (element.type === 'social') {
     const items = ['instagram', 'facebook', 'vk', 'telegram', 'youtube'].filter((key) => element.data[key]);
     return (
@@ -226,9 +271,11 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
       </div>
     );
   }
+  // Якорь для перехода внутри страницы:
   if (element.type === 'menu') {
     return <div id={element.data.anchor || undefined} className="sc-el-anchor" style={css}>{element.data.label}</div>;
   }
+  // Простая форма обратной связи:
   if (element.type === 'form') {
     return (
       <form className="sc-el-form" style={css}>
@@ -238,6 +285,7 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
       </form>
     );
   }
+  // Карта Leaflet внутри опубликованного сайта:
   if (element.type === 'map') {
     return (
       <div className="sc-el-map" style={css}>
@@ -245,9 +293,22 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
       </div>
     );
   }
+  // Пользовательский HTML-код:
   if (element.type === 'embed') {
-    return <div className="sc-el-embed" style={css} dangerouslySetInnerHTML={{ __html: element.data.code || '' }} />;
+    // Чистим HTML перед выводом:
+    const safeHtml = sanitizeEmbedHtml(element.data.code || '');
+    // Показываем embed в песочнице:
+    return (
+      <iframe
+        className="sc-el-embed-frame"
+        style={css}
+        title={element.data.title || 'Embed'}
+        sandbox="allow-same-origin allow-popups allow-forms"
+        srcDoc={safeHtml}
+      />
+    );
   }
+  // Список опубликованных экскурсий:
   if (element.type === 'tours') {
     const selectedIds = element.data.selectedTourIds || [];
     return (
@@ -258,6 +319,7 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
             .filter((exc: any) => selectedIds.length === 0 || selectedIds.includes(exc.id))
             .map((exc: any) => (
               <Link key={exc.id} to={`/s/${slug}/excursion/${exc.id}`} className="sc-el-tour-card">
+                {exc.coverImage && <span className="sc-el-tour-cover" style={{ backgroundImage: `url(${exc.coverImage})` }} />}
                 <h4>{exc.title}</h4>
                 <span>{exc.city}</span>
                 <small>{exc.duration} мин · {(exc.distance / 1000).toFixed(1)} км</small>
@@ -281,6 +343,7 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
 }
 
 function styleToCss(style: any = {}, primary = '#2563eb'): React.CSSProperties {
+  // Преобразует настройки конструктора в inline-стили:
   return {
     background: style.background && style.background !== 'transparent' ? style.background : undefined,
     color: style.color,
@@ -296,6 +359,7 @@ function styleToCss(style: any = {}, primary = '#2563eb'): React.CSSProperties {
   } as React.CSSProperties;
 }
 
+// Формирует резервную ссылку на встроенную карту:
 function getMapEmbedUrl(data: Record<string, any>) {
   if (data.embedUrl) return data.embedUrl;
   const lat = Number(data.lat) || 59.939;
@@ -304,6 +368,7 @@ function getMapEmbedUrl(data: Record<string, any>) {
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}&layer=mapnik&marker=${lat}%2C${lng}`;
 }
 
+// Синхронизирует центр и масштаб Leaflet-карты:
 function MapViewUpdater({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   useEffect(() => {
@@ -312,8 +377,11 @@ function MapViewUpdater({ center, zoom }: { center: [number, number]; zoom: numb
   return null;
 }
 
+// Показывает карту на опубликованной странице:
 function PublicLeafletMap({ data }: { data: Record<string, any> }) {
+  // Центр карты берется из настроек элемента:
   const center: [number, number] = [Number(data.lat) || 59.939, Number(data.lng) || 30.316];
+  // Масштаб карты также хранится в данных элемента:
   const zoom = Number(data.zoom) || 13;
 
   return (
@@ -325,91 +393,5 @@ function PublicLeafletMap({ data }: { data: Record<string, any> }) {
       </MapContainer>
       {data.address && <span className="sc-el-map-label">{data.address}</span>}
     </div>
-  );
-}
-
-function LegacyBlockRenderer({ page, excursions, slug }: { page: any; excursions: any[]; slug: string }) {
-  return (
-    <>
-      {(page.blocks || []).filter((block: any) => block.type !== 'header').map((block: any) => (
-        <div key={block.id}>
-          {block.type === 'banner' && (
-            <div
-              className="sc-banner"
-              style={{
-                background: block.data.bgImage
-                  ? `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${block.data.bgImage}) center/cover`
-                  : (block.data.bgColor || '#2563eb'),
-                color: block.data.textColor || '#fff',
-                borderRadius: 'var(--sc-radius)',
-              }}
-            >
-              <h1>{block.data.title}</h1>
-              <p>{block.data.subtitle}</p>
-            </div>
-          )}
-
-          {block.type === 'about' && (
-            <div className="sc-about">
-              {block.data.photoUrl && <img src={block.data.photoUrl} alt="" className="sc-about-photo" />}
-              <div>
-                <h2>{block.data.name}</h2>
-                <p>{block.data.bio}</p>
-              </div>
-            </div>
-          )}
-
-          {block.type === 'tours' && (
-            <div className="sc-tours">
-              <h2>{block.data.heading}</h2>
-              <div className="sc-tours-grid" style={{ gridTemplateColumns: `repeat(${block.data.columns || 2}, 1fr)` }}>
-                {excursions
-                  .filter((exc: any) => {
-                    const ids = block.data.selectedTourIds || [];
-                    return ids.length === 0 || ids.includes(exc.id);
-                  })
-                  .map((exc: any) => (
-                    <Link key={exc.id} to={`/s/${slug}/excursion/${exc.id}`} className="sc-tour-card" style={{ borderRadius: 'var(--sc-radius)' }}>
-                      <h4>{exc.title}</h4>
-                      <span className="sc-tour-city">{exc.city}</span>
-                      <span className="sc-tour-meta">{exc.duration} мин &bull; {(exc.distance / 1000).toFixed(1)} км</span>
-                    </Link>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {block.type === 'contacts' && (
-            <div className="sc-contacts">
-              <h2>{block.data.heading}</h2>
-              <div className="sc-contacts-grid">
-                {block.data.email && <div className="sc-contact-item">Email: {block.data.email}</div>}
-                {block.data.phone && <div className="sc-contact-item">Телефон: {block.data.phone}</div>}
-                {block.data.telegram && <div className="sc-contact-item">Telegram: {block.data.telegram}</div>}
-                {block.data.address && <div className="sc-contact-item">Адрес: {block.data.address}</div>}
-              </div>
-            </div>
-          )}
-
-          {block.type === 'text' && (
-            <div className="sc-text">
-              <h2>{block.data.heading}</h2>
-              <p>{block.data.content}</p>
-            </div>
-          )}
-
-          {block.type === 'gallery' && (
-            <div className="sc-gallery">
-              <h2>{block.data.heading}</h2>
-              <div className="sc-gallery-grid">
-                {(block.data.images || []).map((url: string, i: number) => (
-                  <div key={i} className="sc-gallery-img" style={{ backgroundImage: `url(${url})`, borderRadius: 'var(--sc-radius)' }} />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-    </>
   );
 }

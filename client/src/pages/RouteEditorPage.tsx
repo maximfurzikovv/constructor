@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { api } from '../api/client';
 import Button from '../components/ui/Button';
 import Input, { Textarea } from '../components/ui/Input';
-import type { Excursion, Point } from 'shared/types';
+import type { Excursion, MediaItem, Point } from 'shared/types';
 import './RouteEditorPage.css';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -18,10 +18,12 @@ L.Icon.Default.mergeOptions({
 const SERVER_URL = '';
 let tempIdCounter = 0;
 
+// Временный id для точки:
 function nextTempId() {
   return `temp-${++tempIdCounter}`;
 }
 
+// Кастомная иконка точки:
 function pointIcon(order: number, selected: boolean) {
   return L.divIcon({
     className: 'stop-marker',
@@ -31,6 +33,7 @@ function pointIcon(order: number, selected: boolean) {
   });
 }
 
+// Обрабатка клика по карте:
 function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
@@ -40,23 +43,56 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
   return null;
 }
 
+// Возвращает порядок аудио:
 function audioOrder(media: any, index: number) {
   const parsed = Number(media.description);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : index + 1;
 }
 
-export default function RouteEditorPage() {
-  const { excursionId } = useParams<{ excursionId: string }>();
-  const [excursion, setExcursion] = useState<Excursion | null>(null);
-  const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
-  const [addMode, setAddMode] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [statusMsg, setStatusMsg] = useState<string | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [uploadingMedia, setUploadingMedia] = useState(false);
-  const initialLoadDone = useRef(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+// Проверяет, похоже ли название на техническое имя файла:
+function isRawFileName(title: string) {
+  return /(\.mp3|\.wav|\.m4a|\.ogg|\.webm|\.aac|\.mp4)$/i.test(title) || title.includes('_');
+}
 
+export default function RouteEditorPage() {
+  // id экскурсии из адреса страницы:
+  const { excursionId } = useParams<{ excursionId: string }>();
+  // Храним загруженную экскурсию:
+  const [excursion, setExcursion] = useState<Excursion | null>(null);
+  // Храним выбранную точку маршрута:
+  const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
+  // Режим добавления новой точки на карту:
+  const [addMode, setAddMode] = useState(false);
+  // Флаг процесса сохранения:
+  const [saving, setSaving] = useState(false);
+  // Текст статуса для пользователя:
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  // Флаг несохраненных изменений:
+  const [hasChanges, setHasChanges] = useState(false);
+  // Флаг загрузки медиафайла:
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  // Флаг открытия медиатеки точки:
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  // Файлы медиатеки текущей экскурсии:
+  const [libraryMedia, setLibraryMedia] = useState<MediaItem[]>([]);
+  // Флаг загрузки списка медиатеки:
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  // Флаг открытия медиатеки для выбора обложки:
+  const [coverPickerOpen, setCoverPickerOpen] = useState(false);
+  // Файлы медиатеки для выбора обложки:
+  const [coverLibraryMedia, setCoverLibraryMedia] = useState<MediaItem[]>([]);
+  // Флаг загрузки обложки:
+  const [coverUploading, setCoverUploading] = useState(false);
+  // Черновики названий медиа:
+  const [mediaTitleDrafts, setMediaTitleDrafts] = useState<Record<string, string>>({});
+  // Защита от отметки изменений при первой загрузке:
+  const initialLoadDone = useRef(false);
+  // Ссылка на скрытый input для выбора файла:
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Ссылка на скрытый input обложки:
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Загрузка экскурсии с маршрутом при открытии редактора:
   useEffect(() => {
     if (!excursionId) return;
     api.getExcursion(excursionId).then((data: any) => {
@@ -65,10 +101,12 @@ export default function RouteEditorPage() {
     });
   }, [excursionId]);
 
+  // Пометка формы измененной после начальной загрузки:
   const markDirty = useCallback(() => {
     if (initialLoadDone.current) setHasChanges(true);
   }, []);
 
+  // Обновление выбранной точки:
   const syncSelectedPoint = (updatedPoint: Point) => {
     setSelectedPoint(updatedPoint);
     setExcursion((prev) =>
@@ -84,6 +122,7 @@ export default function RouteEditorPage() {
     );
   };
 
+  // Добавление новой точку в место клика по карте:
   const handleMapClick = useCallback(
     (lat: number, lng: number) => {
       if (!addMode || !excursion?.route) return;
@@ -123,12 +162,14 @@ export default function RouteEditorPage() {
     [addMode, excursion, markDirty]
   );
 
+  // Изменение одного поля выбранной точки:
   const handlePointUpdate = (field: string, value: string | number) => {
     if (!selectedPoint) return;
     syncSelectedPoint({ ...selectedPoint, [field]: value });
     markDirty();
   };
 
+  // Удаляет точку и пересчитывает порядок маршрута:
   const handleDeletePoint = (pointId: string) => {
     setExcursion((prev) => {
       if (!prev?.route) return prev;
@@ -142,6 +183,7 @@ export default function RouteEditorPage() {
     markDirty();
   };
 
+  // Загружает изображение, аудио или видео для выбранной точки:
   const handleMediaUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files?.[0] || !selectedPoint || !excursion) return;
     setUploadingMedia(true);
@@ -149,8 +191,9 @@ export default function RouteEditorPage() {
     try {
       const media: any = await api.uploadMedia(event.target.files[0], excursion.id, selectedPoint.id);
       const audioCount = (selectedPoint.media || []).filter((item) => item.type === 'audio').length;
+      const audioTitle = !media.title || isRawFileName(media.title) ? `Аудиофайл ${audioCount + 1}` : media.title;
       const mediaWithOrder = media.type === 'audio'
-        ? await api.updateMedia(media.id, { description: String(audioCount + 1) })
+        ? await api.updateMedia(media.id, { title: audioTitle, description: String(audioCount + 1) })
         : media;
       syncSelectedPoint({ ...selectedPoint, media: [...(selectedPoint.media || []), mediaWithOrder as any] });
       setStatusMsg('Медиа загружено');
@@ -163,6 +206,134 @@ export default function RouteEditorPage() {
     }
   };
 
+  // Открывает медиатеку для выбора готового файла:
+  const openMediaPicker = async () => {
+    if (!excursion || !selectedPoint || selectedPoint.id.startsWith('temp-')) return;
+    setMediaPickerOpen(true);
+    setLibraryLoading(true);
+    setStatusMsg(null);
+    try {
+      const items: any = await api.getMedia(excursion.id);
+      setLibraryMedia(items); // Сохраняем файлы экскурсии
+    } catch {
+      setStatusMsg('Ошибка загрузки медиатеки');
+    } finally {
+      setLibraryLoading(false);
+    }
+  };
+
+  // Сохраняет выбранную обложку экскурсии:
+  const saveCoverImage = async (coverImage: string) => {
+    if (!excursion) return;
+    setStatusMsg(null);
+    try {
+      const updated: any = await api.updateExcursion(excursion.id, { coverImage });
+      setExcursion((prev) => (prev ? { ...prev, coverImage: updated.coverImage } : prev));
+      setStatusMsg('Обложка обновлена');
+      setTimeout(() => setStatusMsg(null), 2500);
+    } catch {
+      setStatusMsg('Ошибка сохранения обложки');
+    }
+  };
+
+  // Загружает новую обложку с компьютера:
+  const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files?.[0] || !excursion) return;
+    setCoverUploading(true);
+    setStatusMsg(null);
+    try {
+      const media: any = await api.uploadMedia(event.target.files[0], excursion.id);
+      await saveCoverImage(media.url);
+    } catch {
+      setStatusMsg('Ошибка загрузки обложки');
+    } finally {
+      setCoverUploading(false);
+      if (coverFileInputRef.current) coverFileInputRef.current.value = '';
+    }
+  };
+
+  // Открывает медиатеку для выбора обложки:
+  const openCoverPicker = async () => {
+    if (!excursion) return;
+    setCoverPickerOpen(true);
+    setLibraryLoading(true);
+    setStatusMsg(null);
+    try {
+      const items: any = await api.getMedia(excursion.id);
+      setCoverLibraryMedia(items.filter((item: MediaItem) => item.type === 'image')); // Для обложки нужны изображения
+    } catch {
+      setStatusMsg('Ошибка загрузки медиатеки');
+    } finally {
+      setLibraryLoading(false);
+    }
+  };
+
+  // Назначает изображение из медиатеки обложкой:
+  const attachCoverFromLibrary = async (media: MediaItem) => {
+    await saveCoverImage(media.url);
+    setCoverPickerOpen(false);
+  };
+
+  // Привязывает выбранный файл медиатеки к точке:
+  const attachMediaFromLibrary = async (media: MediaItem) => {
+    if (!selectedPoint) return;
+    // Не переносим файл с другой точки без явного удаления:
+    if (media.pointId && media.pointId !== selectedPoint.id) {
+      setStatusMsg('Файл уже привязан к другой точке');
+      return;
+    }
+    // Не добавляем один и тот же файл повторно:
+    if ((selectedPoint.media || []).some((item) => item.id === media.id)) {
+      setMediaPickerOpen(false);
+      return;
+    }
+    try {
+      const audioCount = (selectedPoint.media || []).filter((item) => item.type === 'audio').length;
+      const description = media.type === 'audio' ? String(audioCount + 1) : media.description;
+      const title = media.type === 'audio' && isRawFileName(media.title) ? `Аудиофайл ${audioCount + 1}` : media.title;
+      const updated: any = await api.updateMedia(media.id, {
+        title,
+        description,
+        pointId: selectedPoint.id,
+      });
+      syncSelectedPoint({ ...selectedPoint, media: [...(selectedPoint.media || []), updated] });
+      setLibraryMedia((items) => items.map((item) => (item.id === updated.id ? updated : item)));
+      setMediaPickerOpen(false);
+      setStatusMsg('Медиа добавлено к точке');
+      setTimeout(() => setStatusMsg(null), 2500);
+    } catch {
+      setStatusMsg('Ошибка добавления медиа');
+    }
+  };
+
+  // Меняет черновик названия медиа:
+  const handleMediaTitleDraftChange = (mediaId: string, title: string) => {
+    setMediaTitleDrafts((prev) => ({ ...prev, [mediaId]: title }));
+  };
+
+  // Сохраняет отображаемое название медиа:
+  const saveMediaTitle = async (media: any) => {
+    if (!selectedPoint) return;
+    const draft = mediaTitleDrafts[media.id];
+    if (draft === undefined) return;
+    const title = draft.trim() || media.title;
+    const updated: any = await api.updateMedia(media.id, {
+      title,
+      description: media.description,
+      pointId: selectedPoint.id,
+    });
+    syncSelectedPoint({
+      ...selectedPoint,
+      media: (selectedPoint.media || []).map((item) => (item.id === updated.id ? updated : item)),
+    });
+    setMediaTitleDrafts((prev) => {
+      const next = { ...prev };
+      delete next[media.id];
+      return next;
+    });
+  };
+
+  // Удаляет медиафайл точки:
   const handleMediaDelete = async (mediaId: string) => {
     if (!selectedPoint) return;
     try {
@@ -176,6 +347,7 @@ export default function RouteEditorPage() {
     }
   };
 
+  // Меняет порядок воспроизведения аудио внутри точки:
   const handleMediaOrderChange = async (media: any, order: number) => {
     if (!selectedPoint) return;
     const nextOrder = Math.max(1, order || 1);
@@ -190,6 +362,7 @@ export default function RouteEditorPage() {
     });
   };
 
+  // Сохраняет маршрут или сразу публикует экскурсию:
   const saveRoute = async (publish: boolean) => {
     if (!excursion?.route) return;
     setSaving(true);
@@ -260,15 +433,22 @@ export default function RouteEditorPage() {
     return <div className="editor-loading">Загрузка...</div>;
   }
 
+  // Берем точки маршрута для дальнейшего отображения:
   const points = excursion.route.points;
+  // Сортируем точки по порядку прохождения:
   const sortedPoints = [...points].sort((a, b) => a.order - b.order);
+  // Готовим координаты для линии маршрута:
   const routePositions: [number, number][] = sortedPoints.map((point) => [point.lat, point.lng]);
+  // Центр карты ставим на первую точку или на значение по умолчанию:
   const center: [number, number] = points.length > 0 ? [points[0].lat, points[0].lng] : [59.939, 30.316];
+  // Отдельно выбираем аудио выбранной точки:
   const audioMedia = (selectedPoint?.media || []).filter((media) => media.type === 'audio');
+  // Отдельно выбираем видео выбранной точки:
   const videoMedia = (selectedPoint?.media || []).filter((media) => media.type === 'video');
 
   return (
     <div className="editor-layout">
+      {/* Левая панель инструментов маршрута: */}
       <div className="editor-tools">
         <h3>Инструменты</h3>
         <Button
@@ -308,6 +488,62 @@ export default function RouteEditorPage() {
         </div>
 
         <div className="tools-divider" />
+        <div className="cover-editor">
+          <h4>Обложка экскурсии</h4>
+          {excursion.coverImage ? (
+            <img className="cover-preview" src={`${SERVER_URL}${excursion.coverImage}`} alt="Обложка экскурсии" />
+          ) : (
+            <div className="cover-empty">Обложка не выбрана</div>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            ref={coverFileInputRef}
+            onChange={handleCoverUpload}
+            style={{ display: 'none' }}
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => coverFileInputRef.current?.click()}
+            disabled={coverUploading}
+            style={{ width: '100%' }}
+          >
+            {coverUploading ? 'Загрузка...' : 'Загрузить обложку'}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={openCoverPicker} style={{ width: '100%' }}>
+            Выбрать из медиатеки
+          </Button>
+          {coverPickerOpen && (
+            <div className="media-picker cover-picker">
+              <div className="media-picker-head">
+                <strong>Изображения медиатеки</strong>
+                <button type="button" onClick={() => setCoverPickerOpen(false)}>×</button>
+              </div>
+              {libraryLoading && <p className="media-picker-empty">Загрузка...</p>}
+              {!libraryLoading && coverLibraryMedia.length === 0 && (
+                <p className="media-picker-empty">В медиатеке нет изображений.</p>
+              )}
+              {!libraryLoading && coverLibraryMedia.length > 0 && (
+                <div className="media-picker-list">
+                  {coverLibraryMedia.map((media) => (
+                    <button key={media.id} type="button" className="media-picker-item" onClick={() => attachCoverFromLibrary(media)}>
+                      <span className="media-picker-preview">
+                        <img src={`${SERVER_URL}${media.url}`} alt={media.title} />
+                      </span>
+                      <span>
+                        <strong>{media.title}</strong>
+                        <small>Сделать обложкой</small>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="tools-divider" />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {hasChanges && <span style={{ fontSize: 12, color: '#f59e0b', textAlign: 'center' }}>Есть несохраненные изменения</span>}
           {statusMsg && <span style={{ fontSize: 13, color: statusMsg.includes('Ошибка') ? '#dc2626' : '#16a34a', textAlign: 'center' }}>{statusMsg}</span>}
@@ -320,6 +556,7 @@ export default function RouteEditorPage() {
         </div>
       </div>
 
+      {/* Центральная карта с точками маршрута: */}
       <div className="editor-map">
         <MapContainer center={center} zoom={14} style={{ width: '100%', height: '100%' }} attributionControl={false}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -355,6 +592,7 @@ export default function RouteEditorPage() {
         {addMode && <div className="map-hint">Кликните на карте, чтобы добавить точку</div>}
       </div>
 
+      {/* Правая панель свойств выбранной точки: */}
       <div className="editor-props">
         {selectedPoint ? (
           <>
@@ -416,7 +654,15 @@ export default function RouteEditorPage() {
                       .map((media, index) => (
                         <div key={media.id} className="point-media-row">
                           <strong>Аудио</strong>
-                          <span>{media.title}</span>
+                          <Input
+                            label="Название аудио"
+                            value={mediaTitleDrafts[media.id] ?? media.title ?? `Аудиофайл ${index + 1}`}
+                            onChange={(event) => handleMediaTitleDraftChange(media.id, event.target.value)}
+                            onBlur={() => saveMediaTitle(media)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') event.currentTarget.blur();
+                            }}
+                          />
                           <label className="media-order-field">
                             Порядок
                             <input
@@ -433,7 +679,15 @@ export default function RouteEditorPage() {
                     {videoMedia.map((media) => (
                       <div key={media.id} className="point-media-row">
                         <strong>Видео</strong>
-                        <span>{media.title}</span>
+                        <Input
+                          label="Название видео"
+                          value={mediaTitleDrafts[media.id] ?? media.title}
+                          onChange={(event) => handleMediaTitleDraftChange(media.id, event.target.value)}
+                          onBlur={() => saveMediaTitle(media)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') event.currentTarget.blur();
+                          }}
+                        />
                         <video src={`${SERVER_URL}${media.url}`} controls />
                         <button type="button" onClick={() => handleMediaDelete(media.id)}>Удалить</button>
                       </div>
@@ -458,12 +712,60 @@ export default function RouteEditorPage() {
               >
                 {uploadingMedia ? 'Загрузка...' : 'Загрузить фото, аудио или видео'}
               </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={openMediaPicker}
+                disabled={selectedPoint.id.startsWith('temp-')}
+                style={{ width: '100%' }}
+              >
+                Выбрать из медиатеки
+              </Button>
               {selectedPoint.id.startsWith('temp-') && (
                 <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
                   Сначала сохраните точку, затем загружайте медиа.
                 </p>
               )}
             </div>
+
+            {/* Медиатека текущей экскурсии: */}
+            {mediaPickerOpen && (
+              <div className="media-picker">
+                <div className="media-picker-head">
+                  <strong>Медиатека экскурсии</strong>
+                  <button type="button" onClick={() => setMediaPickerOpen(false)}>×</button>
+                </div>
+                {libraryLoading && <p className="media-picker-empty">Загрузка...</p>}
+                {!libraryLoading && libraryMedia.length === 0 && (
+                  <p className="media-picker-empty">В этой экскурсии пока нет медиафайлов.</p>
+                )}
+                {!libraryLoading && libraryMedia.length > 0 && (
+                  <div className="media-picker-list">
+                    {libraryMedia.map((media) => {
+                      const attached = (selectedPoint.media || []).some((item) => item.id === media.id);
+                      const locked = Boolean(media.pointId && media.pointId !== selectedPoint.id);
+                      return (
+                        <button
+                          key={media.id}
+                          type="button"
+                          className={`media-picker-item ${attached || locked ? 'attached' : ''}`}
+                          onClick={() => attachMediaFromLibrary(media)}
+                          disabled={attached || locked}
+                        >
+                          <span className="media-picker-preview">
+                            {media.type === 'image' ? <img src={`${SERVER_URL}${media.url}`} alt={media.title} /> : media.type === 'audio' ? '🎵' : '🎬'}
+                          </span>
+                          <span>
+                            <strong>{media.title}</strong>
+                            <small>{attached ? 'Уже добавлено' : locked ? 'Привязан к другой точке' : media.type}</small>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <div className="props-empty">

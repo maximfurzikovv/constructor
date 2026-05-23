@@ -1,17 +1,23 @@
 import { Router } from 'express';
 import prisma from '../db';
-
-const router = Router();
-
-router.get('/', async (req, res) => {
+import { AuthRequest, getOptionalAuthUser, requireAuth, requireRole } from '../authSecurity';
+// Маршрутизатор:
+const router = Router(); // API-маршруты
+// GET получение списка экскурсий:
+router.get('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+  // Текущий автор берется из JWT:
+  const userId = req.user!.id;
+  // Запрос всех экскурсий:
   const excursions = await prisma.excursion.findMany({
-    orderBy: { updatedAt: 'desc' },
+    where: { authorId: userId },
+    orderBy: { updatedAt: 'desc' }, // По дате обновления
     include: {
-      route: {
+      route: { // А также все маршруты и точки
         include: { _count: { select: { points: true } } },
       },
     },
   });
+  // Массив объектов для ответа API:
   const data = excursions.map((e) => ({
     id: e.id,
     title: e.title,
@@ -22,7 +28,7 @@ router.get('/', async (req, res) => {
     coverImage: e.coverImage,
     createdAt: e.createdAt.toISOString(),
     updatedAt: e.updatedAt.toISOString(),
-    route: e.route
+    route: e.route // Если маршрут есть
       ? {
           id: e.route.id,
           duration: e.route.duration,
@@ -32,26 +38,38 @@ router.get('/', async (req, res) => {
         }
       : null,
   }));
-  res.json({ data });
+  res.json({ data }); // Возврат списка экскурсий
 });
 
-router.get('/stats', async (req, res) => {
-  const [totalExcursions, publishedExcursions, totalPoints] = await Promise.all([
-    prisma.excursion.count(),
-    prisma.excursion.count({ where: { status: 'published' } }),
-    prisma.point.count(),
+// GET статистики для дашборда:
+router.get('/stats', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+  // Статистика считается только по данным текущего автора:
+  const userId = req.user!.id;
+  // Считаем несколько показателей параллельно:
+  const [totalExcursions, publishedExcursions, totalPoints, totalMedia] = await Promise.all([
+    // Общее количество экскурсий:
+    prisma.excursion.count({ where: { authorId: userId } }),
+    // Количество опубликованных экскурсий:
+    prisma.excursion.count({ where: { authorId: userId, status: 'published' } }),
+    // Общее количество точек маршрутов:
+    prisma.point.count({ where: { route: { excursion: { authorId: userId } } } }),
+    // Общее количество медиафайлов:
+    prisma.media.count({ where: { excursion: { authorId: userId } } }),
   ]);
+  // Возвращаем агрегированные данные:
   res.json({
     data: {
       totalExcursions,
       publishedExcursions,
       totalPoints,
-      totalViews: totalExcursions * 42,
+      totalMedia,
     },
   });
 });
 
+// GET одной экскурсии по id:
 router.get('/:id', async (req, res) => {
+  // Ищем экскурсию вместе с маршрутом, точками и медиа:
   const excursion = await prisma.excursion.findUnique({
     where: { id: req.params.id },
     include: {
@@ -64,11 +82,19 @@ router.get('/:id', async (req, res) => {
   });
   if (!excursion) return res.status(404).json({ error: 'Экскурсия не найдена' });
 
-  // If ?published=true and snapshot exists, return snapshot data
+  // Черновик может читать только его автор:
+  const authUser = await getOptionalAuthUser(req);
+  if (excursion.status !== 'published' && authUser?.id !== excursion.authorId) {
+    return res.status(404).json({ error: 'Excursion not found' });
+  }
+
+  // If ?published=true and snapshot exists, return snapshot data:
+  // Для публичного просмотра берем опубликованный snapshot:
   if (req.query.published === 'true' && excursion.publishedSnapshot) {
     return res.json({ data: JSON.parse(excursion.publishedSnapshot) });
   }
 
+  // Иначе собираем текущие данные из базы:
   res.json({
     data: {
       id: excursion.id,
@@ -98,12 +124,16 @@ router.get('/:id', async (req, res) => {
   });
 });
 
-router.post('/', async (req, res) => {
+// POST создания новой экскурсии:
+router.post('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+  // Новая экскурсия привязывается к текущему пользователю:
+  const userId = req.user!.id;
+  // Создаем экскурсию и сразу создаем пустой маршрут:
   const excursion = await prisma.excursion.create({
     data: {
       title: req.body.title || 'Новая экскурсия',
       description: req.body.description || '',
-      authorId: 'user-1',
+      authorId: userId,
       city: req.body.city || '',
       route: {
         create: {
@@ -113,6 +143,7 @@ router.post('/', async (req, res) => {
     },
     include: { route: true },
   });
+  // Возвращаем созданную экскурсию клиенту:
   res.status(201).json({
     data: {
       id: excursion.id,
@@ -139,24 +170,37 @@ router.post('/', async (req, res) => {
   });
 });
 
-router.put('/:id', async (req, res) => {
+// PUT обновления экскурсии:
+router.put('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+  // Обновлять можно только свои экскурсии:
+  const userId = req.user!.id;
+  // Отделяем route от основных полей экскурсии:
   const { route, createdAt, updatedAt, ...excursionData } = req.body;
   try {
-    // Update excursion fields
+    const existing = await prisma.excursion.findFirst({
+      where: { id: req.params.id, authorId: userId },
+      include: { route: true },
+    });
+    if (!existing) return res.status(404).json({ error: 'Excursion not found' });
+    // Update excursion fields:
+    // Обновляем основные поля экскурсии:
     const excursion = await prisma.excursion.update({
-      where: { id: req.params.id },
+      where: { id: existing.id },
       data: excursionData,
       include: { route: true },
     });
 
-    // Update route fields if provided
+    // Update route fields if provided:
+    // Если клиент прислал route, обновляем поля маршрута отдельно:
     if (route && excursion.route) {
+      // routeUpdate собирается только из реально переданных полей:
       const routeUpdate: any = {};
       if (route.duration !== undefined) routeUpdate.duration = route.duration;
       if (route.distance !== undefined) routeUpdate.distance = route.distance;
       if (route.transport !== undefined) routeUpdate.transport = route.transport;
       if (route.routeGeo !== undefined) routeUpdate.routeJson = JSON.stringify(route.routeGeo);
 
+      // Если есть что обновлять, сохраняем route:
       if (Object.keys(routeUpdate).length > 0) {
         await prisma.route.update({
           where: { id: excursion.route.id },
@@ -165,11 +209,13 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    // Перечитываем запись после обновления:
     const updated = await prisma.excursion.findUnique({
-      where: { id: req.params.id },
+      where: { id: existing.id },
       include: { route: true },
     });
 
+    // Возвращаем обновленную экскурсию:
     res.json({
       data: {
         id: updated!.id,
@@ -198,8 +244,12 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.put('/:id/publish', async (req, res) => {
+// PUT публикации экскурсии:
+router.put('/:id/publish', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+  // Публиковать можно только свою экскурсию:
+  const userId = req.user!.id;
   try {
+    // Берем экскурсию со всеми точками и медиа для snapshot:
     const excursion = await prisma.excursion.findUnique({
       where: { id: req.params.id },
       include: {
@@ -212,7 +262,11 @@ router.put('/:id/publish', async (req, res) => {
     });
     if (!excursion) return res.status(404).json({ error: 'Экскурсия не найдена' });
 
-    // Build the snapshot — same shape as GET /:id response
+    // Build the snapshot — same shape as GET /:id response:
+    // Snapshot фиксирует публичную версию экскурсии:
+    // Проверяем владельца перед публикацией:
+    if (excursion.authorId !== userId) return res.status(404).json({ error: 'Excursion not found' });
+
     const snapshot = {
       id: excursion.id,
       title: excursion.title,
@@ -239,6 +293,7 @@ router.put('/:id/publish', async (req, res) => {
         : null,
     };
 
+    // Обновляем статус и сохраняем snapshot строкой:
     await prisma.excursion.update({
       where: { id: req.params.id },
       data: {
@@ -247,15 +302,21 @@ router.put('/:id/publish', async (req, res) => {
       },
     });
 
+    // Возвращаем опубликованную версию:
     res.json({ data: snapshot });
   } catch {
     res.status(500).json({ error: 'Ошибка публикации' });
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+  // Удалять можно только свои экскурсии:
+  const userId = req.user!.id;
   try {
-    await prisma.excursion.delete({ where: { id: req.params.id } });
+    // Сначала проверяем, что экскурсия принадлежит текущему автору:
+    const existing = await prisma.excursion.findFirst({ where: { id: req.params.id, authorId: userId } });
+    if (!existing) return res.status(404).json({ error: 'Excursion not found' });
+    await prisma.excursion.delete({ where: { id: existing.id } });
     res.json({ data: { success: true } });
   } catch {
     res.status(404).json({ error: 'Экскурсия не найдена' });

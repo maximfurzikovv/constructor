@@ -31,6 +31,15 @@
   margin-bottom: 4px;
 }
 
+.showcase-tour-cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background-position: center;
+  background-size: cover;
+}
+
 .stc-city {
   font-size: 13px;
   color: var(--color-text-muted);
@@ -398,6 +407,16 @@
   transition: box-shadow 0.15s;
 }
 
+.sc-el-tour-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 8px;
+  border-radius: calc(var(--sc-radius, 8px) - 2px);
+  background-position: center;
+  background-size: cover;
+}
+
 .sc-el-tour-card:hover {
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
 }
@@ -561,6 +580,14 @@
 
 .sc-el-embed {
   overflow: auto;
+}
+
+.sc-el-embed-frame {
+  width: 100%;
+  min-height: 240px;
+  border: 0;
+  overflow: auto;
+  background: transparent;
 }
 
 @media (max-width: 760px) {

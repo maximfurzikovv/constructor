@@ -9,6 +9,7 @@ import './ExcursionPlayerPage.css';
 
 const SERVER_URL = '';
 
+// Иконка текущего положения пользователя:
 const userIcon = L.divIcon({
   className: 'user-marker',
   html: '<div class="user-marker-dot"></div>',
@@ -16,6 +17,7 @@ const userIcon = L.divIcon({
   iconAnchor: [10, 10],
 });
 
+// Учетом состояния точки:
 function pointMarkerIcon(order: number, state: 'upcoming' | 'active' | 'visited') {
   return L.divIcon({
     className: 'player-stop-marker',
@@ -25,18 +27,16 @@ function pointMarkerIcon(order: number, state: 'upcoming' | 'active' | 'visited'
   });
 }
 
-function MapFollower({ position, navigatorMode }: { position: [number, number]; navigatorMode: boolean }) {
+// Следит за пользователем и двигает карту:
+function MapFollower({ position }: { position: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    if (navigatorMode) {
-      map.setView(position, Math.max(map.getZoom(), 18), { animate: true, duration: 0.5 });
-    } else {
-      map.panTo(position, { animate: true, duration: 0.5 });
-    }
-  }, [map, navigatorMode, position]);
+    map.panTo(position, { animate: true, duration: 0.5 });
+  }, [map, position]);
   return null;
 }
 
+// Считает расстояние:
 function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -46,59 +46,170 @@ function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number):
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const safeA = Math.min(1, Math.max(0, a)); // Защита от погрешности
+  return 2 * R * Math.asin(Math.sqrt(safeA));
 }
 
-function bearingDegrees(from: [number, number], to: [number, number]): number {
-  const lat1 = (from[0] * Math.PI) / 180;
-  const lat2 = (to[0] * Math.PI) / 180;
-  const dLng = ((to[1] - from[1]) * Math.PI) / 180;
-  const y = Math.sin(dLng) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
-  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-}
-
+// Форматирует расстояние для интерфейса:
 function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)} м`;
   return `${(meters / 1000).toFixed(1)} км`;
 }
 
+// Возвращает порядок аудио внутри точки:
 function audioOrder(media: any, index: number) {
   const parsed = Number(media.description);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : index + 1;
 }
+// Форматирует время аудио:
+function formatAudioTime(seconds: number) {
+  if (!Number.isFinite(seconds)) return '0:00';
+  const minutes = Math.floor(seconds / 60); // Минуты
+  const rest = Math.floor(seconds % 60).toString().padStart(2, '0'); // Секунды
+  return `${minutes}:${rest}`;
+}
+
+// Возвращает понятное название аудиофайла:
+function audioTitle(media: any, index: number) {
+  const title = String(media.title || '').trim(); // Название из базы
+  const rawFileName = /(\.mp3|\.wav|\.m4a|\.ogg|\.webm|\.aac)$/i.test(title) || title.includes('_'); // Техническое имя
+  return !title || rawFileName ? `Аудиофайл ${index + 1}` : title;
+}
+
+// Отображает свой аудиоплеер:
+function AudioTrack({
+  media,
+  index,
+  total,
+  src,
+  setAudioRef,
+  onEnded,
+}: {
+  media: any;
+  index: number;
+  total: number;
+  src: string;
+  setAudioRef: (node: HTMLAudioElement | null) => void;
+  onEnded: () => void;
+}) {
+  const audioRef = useRef<HTMLAudioElement | null>(null); // Ссылка на audio
+  const [playing, setPlaying] = useState(false); // Состояние воспроизведения
+  const [current, setCurrent] = useState(0); // Текущее время
+  const [duration, setDuration] = useState(0); // Длительность
+
+  // Связывает audio с внешним списком ссылок:
+  const bindRef = (node: HTMLAudioElement | null) => {
+    audioRef.current = node;
+    setAudioRef(node);
+  };
+
+  // Переключает воспроизведение:
+  const togglePlay = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) await audio.play();
+    else audio.pause();
+  };
+
+  // Перематывает дорожку:
+  const seek = (value: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = value;
+    setCurrent(value);
+  };
+
+  return (
+    <div className="audio-card">
+      <div className="audio-card-head">
+        <span className="audio-card-icon">🎵</span>
+        <div>
+          <strong>{audioTitle(media, index)}</strong>
+          <small>{index + 1} из {total}</small>
+        </div>
+      </div>
+      <div className="audio-player">
+        <button type="button" className="audio-play-btn" onClick={togglePlay}>{playing ? 'Ⅱ' : '▶'}</button>
+        <span className="audio-time">{formatAudioTime(current)}</span>
+        <input
+          className="audio-range"
+          type="range"
+          min={0}
+          max={duration || 0}
+          value={Math.min(current, duration || current)}
+          step={1}
+          onChange={(event) => seek(Number(event.target.value))}
+        />
+        <span className="audio-time">{formatAudioTime(duration)}</span>
+      </div>
+      <audio
+        ref={bindRef}
+        src={src}
+        preload="auto"
+        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || 0)}
+        onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime || 0)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false);
+          onEnded();
+        }}
+      />
+    </div>
+  );
+}
 
 export default function ExcursionPlayerPage() {
+  // Получаем id экскурсии из маршрута:
   const { excursionId } = useParams<{ excursionId: string }>();
+  // Навигация нужна для кнопки возврата:
   const navigate = useNavigate();
+  // Храним экскурсию с точками и медиа:
   const [excursion, setExcursion] = useState<Excursion | null>(null);
+  // Индекс текущей точки прохождения:
   const [currentPointIndex, setCurrentPointIndex] = useState(-1);
+  // Управляет открытием нижней панели:
   const [sheetOpen, setSheetOpen] = useState(true);
+  // Высота нижней панели в vh:
   const [sheetHeight, setSheetHeight] = useState(42);
+  // Текущая геопозиция пользователя:
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
+  // Ошибка геолокации для вывода на экран:
   const [geoError, setGeoError] = useState<string | null>(null);
+  // Флаг включенной геолокации:
   const [geoEnabled, setGeoEnabled] = useState(true);
-  const [navigatorMode, setNavigatorMode] = useState(false);
+  // Флаг слежения карты за пользователем:
   const [following, setFollowing] = useState(true);
+  // Автоматическая активация точки по радиусу:
   const [autoActivate, setAutoActivate] = useState(true);
+  // Индекс картинки в просмотрщике:
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  // Дорожная линия маршрута между точками:
   const [roadRoute, setRoadRoute] = useState<[number, number][] | null>(null);
+  // Подсказка, если браузер заблокировал автозапуск аудио:
   const [audioPrompt, setAudioPrompt] = useState<string | null>(null);
+  // Id подписки на геолокацию:
   const watchIdRef = useRef<number | null>(null);
+  // Данные перетаскивания нижней панели:
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
+  // Ссылки на audio-элементы для автозапуска:
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
+  // Защита от повторного автозапуска одной точки:
   const lastAutoPlayedPointRef = useRef<string | null>(null);
 
+  // Загружает экскурсию перед прохождением:
   useEffect(() => {
     if (excursionId) api.getExcursion(excursionId).then((data: any) => setExcursion(data));
   }, [excursionId]);
 
+  // Загружает дорожный маршрут между соседними точками:
   useEffect(() => {
     if (!excursion?.route || excursion.route.points.length < 2) return;
     let cancelled = false;
     const sorted = [...excursion.route.points].sort((a, b) => a.order - b.order);
 
     async function loadSegment(from: typeof sorted[number], to: typeof sorted[number]) {
+      // Прямая линия используется как запасной вариант:
       const fallback: [number, number][] = [[from.lat, from.lng], [to.lat, to.lng]];
       const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
       const url = `https://routing.openstreetmap.de/routed-foot/route/v1/foot/${coords}?overview=full&geometries=geojson&steps=false&alternatives=true`;
@@ -107,6 +218,7 @@ export default function ExcursionPlayerPage() {
         const data = await response.json();
         const routes = Array.isArray(data.routes) ? data.routes : [];
         if (data.code !== 'Ok' || routes.length === 0) return fallback;
+        // Выбираем самый короткий вариант из доступных:
         const shortest = routes
           .filter((route: any) => route.geometry?.coordinates?.length)
           .sort((a: any, b: any) => (a.distance || Infinity) - (b.distance || Infinity))[0];
@@ -129,6 +241,7 @@ export default function ExcursionPlayerPage() {
     };
   }, [excursion]);
 
+  // Включает или выключает постоянное отслеживание позиции:
   useEffect(() => {
     if (!geoEnabled) {
       if (watchIdRef.current !== null) {
@@ -165,6 +278,7 @@ export default function ExcursionPlayerPage() {
     };
   }, [geoEnabled]);
 
+  // Активирует точку, когда пользователь входит в ее радиус:
   useEffect(() => {
     if (!autoActivate || !userPosition || !excursion?.route) return;
     const sortedPoints = [...excursion.route.points].sort((a, b) => a.order - b.order);
@@ -179,20 +293,27 @@ export default function ExcursionPlayerPage() {
     }
   }, [autoActivate, excursion, userPosition]);
 
+  // Сортированные точки нужны для стабильного порядка прохождения:
   const sortedPoints = useMemo(
     () => [...(excursion?.route?.points || [])].sort((a, b) => a.order - b.order),
     [excursion]
   );
+  // Координаты точек для линии на карте:
   const positions: [number, number][] = sortedPoints.map((point) => [point.lat, point.lng]);
+  // Текущая активная точка:
   const currentPoint = currentPointIndex >= 0 ? sortedPoints[currentPointIndex] : null;
+  // Изображения текущей точки:
   const currentPointImages = currentPoint ? (currentPoint.media || []).filter((media) => media.type === 'image') : [];
+  // Аудио текущей точки в заданном порядке:
   const currentPointAudio = currentPoint
     ? (currentPoint.media || [])
         .filter((media) => media.type === 'audio')
         .sort((a, b) => audioOrder(a, 0) - audioOrder(b, 0))
     : [];
+  // Видео текущей точки:
   const currentPointVideo = currentPoint ? (currentPoint.media || []).filter((media) => media.type === 'video') : [];
 
+  // Запускает аудиофайлы точки последовательно:
   const playAudioSequence = (audios: any[], index = 0) => {
     const item = audios[index];
     if (!item) return;
@@ -205,6 +326,7 @@ export default function ExcursionPlayerPage() {
     });
   };
 
+  // Автоматически запускает аудио при переходе к новой точке:
   useEffect(() => {
     if (!currentPoint || currentPointAudio.length === 0) return;
     if (lastAutoPlayedPointRef.current === currentPoint.id) return;
@@ -212,25 +334,28 @@ export default function ExcursionPlayerPage() {
     window.setTimeout(() => playAudioSequence(currentPointAudio, 0), 120);
   }, [currentPoint?.id, currentPointAudio.length]);
 
+  // Пока экскурсия не загружена, показываем простой экран ожидания:
   if (!excursion?.route) {
     return <div className="player-loading">Загрузка маршрута...</div>;
   }
 
+  // Центр карты зависит от геолокации или первой точки маршрута:
   const center: [number, number] = userPosition || positions[0] || [59.939, 30.316];
+  // Показываем дорожный маршрут или линию между точками:
   const routeLine = roadRoute || positions;
+  // Следующая целевая точка для навигации:
   const nextPoint = currentPointIndex >= 0
     ? (currentPointIndex < sortedPoints.length - 1 ? sortedPoints[currentPointIndex + 1] : null)
     : sortedPoints[0] || null;
+  // Расстояние до первой точки до начала экскурсии:
   const distToFirst = userPosition && sortedPoints[0]
     ? distanceMeters(userPosition[0], userPosition[1], sortedPoints[0].lat, sortedPoints[0].lng)
     : null;
+  // Расстояние до следующей точки:
   const distToNext = userPosition && nextPoint
     ? distanceMeters(userPosition[0], userPosition[1], nextPoint.lat, nextPoint.lng)
     : null;
-  const navigationBearing = userPosition && nextPoint
-    ? bearingDegrees(userPosition, [nextPoint.lat, nextPoint.lng])
-    : 0;
-
+  // Определяет визуальное состояние точки на карте:
   const getPointState = (index: number): 'upcoming' | 'active' | 'visited' => {
     if (currentPointIndex < 0) return 'upcoming';
     if (index === currentPointIndex) return 'active';
@@ -238,6 +363,7 @@ export default function ExcursionPlayerPage() {
     return 'upcoming';
   };
 
+  // Переключает текущую точку вручную:
   const goToPoint = (index: number) => {
     setCurrentPointIndex(index);
     setSheetOpen(true);
@@ -245,6 +371,7 @@ export default function ExcursionPlayerPage() {
     setLightboxIndex(null);
   };
 
+  // Завершает перетаскивание нижней панели:
   const finishSheetDrag = () => {
     dragRef.current = null;
     setSheetHeight((height) => {
@@ -254,6 +381,7 @@ export default function ExcursionPlayerPage() {
     });
   };
 
+  // Обновляет высоту панели во время движения пальца:
   const updateSheetDrag = (clientY: number) => {
     if (!dragRef.current) return;
     const delta = dragRef.current.startY - clientY;
@@ -263,6 +391,7 @@ export default function ExcursionPlayerPage() {
     setSheetOpen(clamped > 12);
   };
 
+  // Пунктирная линия ведет пользователя к первой точке:
   const routeToFirst: [number, number][] =
     userPosition && sortedPoints.length > 0 && currentPointIndex < 0
       ? [userPosition, [sortedPoints[0].lat, sortedPoints[0].lng]]
@@ -270,6 +399,7 @@ export default function ExcursionPlayerPage() {
 
   return (
     <div className="player-layout">
+      {/* Основная карта прохождения экскурсии: */}
       <div className="player-map">
         <MapContainer center={center} zoom={14} style={{ width: '100%', height: '100%' }} zoomControl={false} attributionControl={false}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -300,7 +430,7 @@ export default function ExcursionPlayerPage() {
           {userPosition && (
             <>
               <Marker position={userPosition} icon={userIcon} />
-              {following && <MapFollower position={userPosition} navigatorMode={navigatorMode} />}
+              {following && <MapFollower position={userPosition} />}
             </>
           )}
         </MapContainer>
@@ -310,19 +440,10 @@ export default function ExcursionPlayerPage() {
           <span className="player-tour-title">{excursion.title}</span>
         </div>
 
-        {navigatorMode && nextPoint && (
-          <div className="navigator-card">
-            <div className="navigator-arrow" style={{ transform: `rotate(${navigationBearing}deg)` }}>↑</div>
-            <div>
-              <strong>{nextPoint.title}</strong>
-              {distToNext !== null && <span>{formatDistance(distToNext)}</span>}
-            </div>
-          </div>
-        )}
-
         {geoError && <div className="player-geo-error">{geoError}</div>}
       </div>
 
+      {/* Нижняя панель с описанием точки и управлением прохождением: */}
       <div className={`player-sheet ${sheetOpen ? 'open' : 'collapsed'}`} style={{ height: `${sheetHeight}vh` }}>
         <div
           className="sheet-handle"
@@ -386,14 +507,15 @@ export default function ExcursionPlayerPage() {
                   <div className="sheet-media-stack">
                     {audioPrompt && <p className="audio-autoplay-note">{audioPrompt}</p>}
                     {currentPointAudio.map((media, index) => (
-                      <audio
+                      <AudioTrack
                         key={media.id}
-                        ref={(node) => {
+                        media={media}
+                        index={index}
+                        total={currentPointAudio.length}
+                        src={`${SERVER_URL}${media.url}`}
+                        setAudioRef={(node) => {
                           audioRefs.current[media.id] = node;
                         }}
-                        src={`${SERVER_URL}${media.url}`}
-                        controls
-                        preload="auto"
                         onEnded={() => playAudioSequence(currentPointAudio, index + 1)}
                       />
                     ))}
@@ -422,53 +544,34 @@ export default function ExcursionPlayerPage() {
             ) : null}
 
             <div className="sheet-location">
-              <Button
-                variant={following ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => {
-                  if (!geoEnabled) {
-                    setGeoEnabled(true);
-                    setFollowing(true);
-                  } else {
-                    setFollowing(!following);
-                  }
-                }}
-                style={{ width: '100%' }}
-              >
-                {following ? 'Слежение включено' : 'Включить слежение'}
-              </Button>
-              <Button
-                variant={navigatorMode ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => {
-                  setNavigatorMode((enabled) => !enabled);
-                  setGeoEnabled(true);
-                  setFollowing(true);
-                }}
-                style={{ width: '100%', marginTop: 8 }}
-              >
-                {navigatorMode ? 'Режим навигатора включен' : 'Включить режим навигатора'}
-              </Button>
+              {/* Управление геолокацией: */}
               <Button
                 variant={geoEnabled ? 'primary' : 'secondary'}
                 size="sm"
                 onClick={() => {
-                  setGeoEnabled((enabled) => !enabled);
-                  if (geoEnabled) {
-                    setAutoActivate(false);
-                    setFollowing(false);
-                  } else {
-                    setAutoActivate(true);
-                    setFollowing(true);
-                  }
+                  const next = !geoEnabled;
+                  setGeoEnabled(next);
+                  setAutoActivate(next);
+                  setFollowing(next);
                 }}
-                style={{ width: '100%', marginTop: 8 }}
+                style={{ width: '100%' }}
               >
                 {geoEnabled ? 'Отключить геолокацию' : 'Включить геолокацию'}
               </Button>
+              {geoEnabled && userPosition && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setFollowing(true)}
+                  style={{ width: '100%', marginTop: 8 }}
+                >
+                  Центрировать по мне
+                </Button>
+              )}
             </div>
 
             <div className="sheet-stops-list">
+              {/* Быстрый список всех точек маршрута: */}
               {sortedPoints.map((point, index) => {
                 const state = getPointState(index);
                 return (
@@ -488,6 +591,7 @@ export default function ExcursionPlayerPage() {
         )}
       </div>
 
+      {/* Просмотр изображений точки во весь экран: */}
       {lightboxIndex !== null && currentPointImages.length > 0 && (
         <div className="lightbox-overlay" onClick={() => setLightboxIndex(null)}>
           <button className="lightbox-close" onClick={() => setLightboxIndex(null)}>&times;</button>

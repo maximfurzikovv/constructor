@@ -4,3 +4,7 @@ dist
 *.log
 .DS_Store
 .idea
+tmp_docx_temp/
+tmp_docx_render/
+playwright-report/
+test-results/

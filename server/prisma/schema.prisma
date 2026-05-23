@@ -13,7 +13,7 @@ model User {
   password  String
   name      String
   avatar    String?
-  role      String   @default("author")
+  role      String   @default("guide")
   createdAt DateTime @default(now())
 
   excursions    Excursion[]

@@ -1,33 +1,49 @@
-import React from 'react';
+﻿import React, { useId } from 'react';
 import './Input.css';
 
+// Свойства поля ввода:
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
+  label?: string; // Необязательная подпись
 }
 
+// Универсальный input:
 export default function Input({ label, className = '', ...props }: InputProps) {
+  const generatedId = useId(); // ID нужен для связи label и input
+  const inputId = props.id || generatedId; // Переданный id имеет приоритет
+
   return (
     <div className={`input-group ${className}`}>
-      {label && <label className="input-label">{label}</label>}
-      <input className="input" {...props} />
+      {/* Если label передан, показываем подпись: */}
+      {label && <label className="input-label" htmlFor={inputId}>{label}</label>}
+      {/* Все остальные свойства идут в сам input: */}
+      <input id={inputId} className="input" {...props} />
     </div>
   );
 }
 
+// Свойства многострочного поля:
 interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label?: string;
+  label?: string; // Необязательная подпись
 }
 
+// Универсальная textarea:
 export function Textarea({
-  label,
-  className = '',
+  label, // Подпись поля
+
+  className = '', // Доп. CSS-класс
+  // Остальные свойства textarea:
   ...props
 }: TextareaProps) {
+  const generatedId = useId(); // ID нужен для связи label и textarea
+  const textareaId = props.id || generatedId; // Переданный id имеет приоритет
+
   return (
     <div className={`input-group ${className}`}>
-      {label && <label className="input-label">{label}</label>}
-      <textarea className="input textarea" {...props} />
+      {/* Подпись выводится только при наличии label: */}
+      {label && <label className="input-label" htmlFor={textareaId}>{label}</label>}
+      {/* textarea использует общий стиль input и свой стиль textarea: */}
+      <textarea id={textareaId} className="input textarea" {...props} />
     </div>
   );
 }
