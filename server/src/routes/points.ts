@@ -1,6 +1,7 @@
 ﻿import { Router } from 'express';
 import prisma from '../db';
 import { AuthRequest, requireAuth, requireRole } from '../authSecurity';
+import { calculateRouteMetrics } from '../routeMetrics';
 
 const router = Router();
 
@@ -165,10 +166,16 @@ router.put('/route/:routeId/sync', requireAuth, requireRole('guide', 'admin'), a
         synced.push(savedPoint);
       }
 
+      // После синхронизации пересчитываем показатели маршрута:
+      const metrics = calculateRouteMetrics(synced);
       // После синхронизации точек пересобираем GeoJSON маршрута:
       await tx.route.update({
         where: { id: routeId },
-        data: { routeJson: buildRouteJson(synced) },
+        data: {
+          routeJson: buildRouteJson(synced),
+          duration: metrics.duration,
+          distance: metrics.distance,
+        },
       });
 
       // Возвращаем результат из транзакции:

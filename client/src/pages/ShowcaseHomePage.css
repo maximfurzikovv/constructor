@@ -593,13 +593,26 @@
 
 @media (max-width: 760px) {
   .sc-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
+    align-items: center;
+    flex-direction: row;
+    gap: 10px;
+    padding: 14px 16px;
   }
 
   .sc-header-nav {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: min(var(--sc-header-gap, 16px), 12px);
+    min-width: 0;
+  }
+
+  .sc-logo-img {
+    height: 28px;
+    max-width: 82px;
+  }
+
+  .sc-nav-link {
+    padding-inline: 5px;
+    font-size: 13px;
   }
 
   .sc-builder-columns {

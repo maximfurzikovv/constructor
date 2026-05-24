@@ -63,11 +63,20 @@ test('excursions: create, sync route points, publish, and read published snapsho
 
     assert.equal(published.status, 'published');
     assert.equal(published.route.points.length, 2);
+    assert.equal(published.route.duration, 12);
+    assert.ok(published.route.distance > 0);
 
     const snapshot = await apiRequest(`/excursions/${createdExcursion.id}?published=true`);
     assert.equal(snapshot.status, 'published');
     assert.equal(snapshot.route.points.length, 2);
     assert.equal(snapshot.route.points[0].title, 'Point 1');
+    assert.equal(snapshot.route.duration, 12);
+    assert.ok(snapshot.route.distance > 0);
+
+    const excursions = await apiRequest('/excursions');
+    const listedExcursion = excursions.find((item) => item.id === createdExcursion.id);
+    assert.equal(listedExcursion.route.duration, 12);
+    assert.ok(listedExcursion.route.distance > 0);
   } finally {
     if (createdExcursion?.id) {
       await apiRequest(`/excursions/${createdExcursion.id}`, { method: 'DELETE' });

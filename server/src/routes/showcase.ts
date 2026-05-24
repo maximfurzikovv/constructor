@@ -2,6 +2,7 @@
 import prisma from '../db';
 import { AuthRequest, requireAuth, requireRole } from '../authSecurity';
 import { normalizeSiteSlug, SiteBuilderValidationError, validateConstructorPayload } from '../siteBuilderSecurity';
+import { calculateRouteMetrics } from '../routeMetrics';
 
 const router = Router();
 
@@ -130,7 +131,7 @@ router.get('/:slug', async (req, res) => {
     where: { status: 'published', authorId: site.authorId },
     include: {
       route: {
-        include: { _count: { select: { points: true } } },
+        include: { points: { orderBy: { order: 'asc' } } },
       },
     },
   });
@@ -140,18 +141,22 @@ router.get('/:slug', async (req, res) => {
     // Если есть snapshot, публичная карточка строится по опубликованной версии:
     if (e.publishedSnapshot) {
       const snap = JSON.parse(e.publishedSnapshot);
+      // Показатели карточки вычисляются по опубликованным точкам:
+      const metrics = snap.route?.points ? calculateRouteMetrics(snap.route.points) : { duration: 0, distance: 0 };
       return {
         id: snap.id,
         title: snap.title,
         description: snap.description,
         city: snap.city,
         coverImage: snap.coverImage || e.coverImage,
-        duration: snap.route?.duration || 0,
-        distance: snap.route?.distance || 0,
+        duration: metrics.duration,
+        distance: metrics.distance,
         transport: snap.route?.transport || 'walk',
         status: snap.status,
       };
     }
+    // Без snapshot расчет выполняется по текущим точкам маршрута:
+    const metrics = e.route ? calculateRouteMetrics(e.route.points) : { duration: 0, distance: 0 };
     // Если snapshot нет, используем текущие данные из базы:
     return {
       id: e.id,
@@ -159,8 +164,8 @@ router.get('/:slug', async (req, res) => {
       description: e.description,
       city: e.city,
       coverImage: e.coverImage,
-      duration: e.route?.duration || 0,
-      distance: e.route?.distance || 0,
+      duration: metrics.duration,
+      distance: metrics.distance,
       transport: e.route?.transport || 'walk',
       status: e.status,
     };

@@ -468,6 +468,9 @@ export default function RouteEditorPage() {
   const points = excursion.route.points;
   // Сортируем точки по порядку прохождения:
   const sortedPoints = [...points].sort((a, b) => a.order - b.order);
+  // Показатели меняются сразу при редактировании точек:
+  const visibleDuration = routeDurationMinutes(sortedPoints);
+  const visibleDistance = routeDistanceMeters(sortedPoints);
   // Готовим координаты для линии маршрута:
   const routePositions: [number, number][] = sortedPoints.map((point) => [point.lat, point.lng]);
   // Центр карты ставим на первую точку или на значение по умолчанию:
@@ -510,7 +513,7 @@ export default function RouteEditorPage() {
         <div className="tools-divider" />
         <div className="tour-info-mini">
           <p><strong>{excursion.title}</strong></p>
-          <p>{points.length} точек | {excursion.route.duration} мин | {(excursion.route.distance / 1000).toFixed(1)} км</p>
+          <p>{points.length} точек | {visibleDuration} мин | {(visibleDistance / 1000).toFixed(1)} км</p>
           <p style={{ fontSize: 12, marginTop: 4 }}>
             Статус: {excursion.status === 'published' ? 'опубликована' : 'черновик'}
           </p>

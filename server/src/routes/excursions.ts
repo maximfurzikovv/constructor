@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import prisma from '../db';
 import { AuthRequest, getOptionalAuthUser, requireAuth, requireRole } from '../authSecurity';
+import { calculateRouteMetrics } from '../routeMetrics';
 // Маршрутизатор:
 const router = Router(); // API-маршруты
 // GET получение списка экскурсий:
@@ -13,31 +14,36 @@ router.get('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequ
     orderBy: { updatedAt: 'desc' }, // По дате обновления
     include: {
       route: { // А также все маршруты и точки
-        include: { _count: { select: { points: true } } },
+        include: { points: { orderBy: { order: 'asc' } } },
       },
     },
   });
   // Массив объектов для ответа API:
-  const data = excursions.map((e) => ({
-    id: e.id,
-    title: e.title,
-    description: e.description,
-    authorId: e.authorId,
-    status: e.status,
-    city: e.city,
-    coverImage: e.coverImage,
-    createdAt: e.createdAt.toISOString(),
-    updatedAt: e.updatedAt.toISOString(),
-    route: e.route // Если маршрут есть
-      ? {
-          id: e.route.id,
-          duration: e.route.duration,
-          distance: e.route.distance,
-          transport: e.route.transport,
-          pointsCount: e.route._count.points,
-        }
-      : null,
-  }));
+  const data = excursions.map((e) => {
+    // В списке метрики также считаются по фактическим точкам:
+    const metrics = e.route ? calculateRouteMetrics(e.route.points) : null;
+
+    return {
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      authorId: e.authorId,
+      status: e.status,
+      city: e.city,
+      coverImage: e.coverImage,
+      createdAt: e.createdAt.toISOString(),
+      updatedAt: e.updatedAt.toISOString(),
+      route: e.route // Если маршрут есть
+        ? {
+            id: e.route.id,
+            duration: metrics!.duration,
+            distance: metrics!.distance,
+            transport: e.route.transport,
+            pointsCount: e.route.points.length,
+          }
+        : null,
+    };
+  });
   res.json({ data }); // Возврат списка экскурсий
 });
 
@@ -91,9 +97,16 @@ router.get('/:id', async (req, res) => {
   // If ?published=true and snapshot exists, return snapshot data:
   // Для публичного просмотра берем опубликованный snapshot:
   if (req.query.published === 'true' && excursion.publishedSnapshot) {
-    return res.json({ data: JSON.parse(excursion.publishedSnapshot) });
+    const snapshot = JSON.parse(excursion.publishedSnapshot);
+    // Старые публикации также получают актуальный расчет по точкам:
+    const metrics = snapshot.route?.points ? calculateRouteMetrics(snapshot.route.points) : null;
+    return res.json({
+      data: metrics ? { ...snapshot, route: { ...snapshot.route, ...metrics } } : snapshot,
+    });
   }
 
+  // Метрики вычисляются по фактически сохраненным точкам:
+  const routeMetrics = excursion.route ? calculateRouteMetrics(excursion.route.points) : null;
   // Иначе собираем текущие данные из базы:
   res.json({
     data: {
@@ -111,8 +124,8 @@ router.get('/:id', async (req, res) => {
             id: excursion.route.id,
             excursionId: excursion.id,
             routeGeo: JSON.parse(excursion.route.routeJson),
-            duration: excursion.route.duration,
-            distance: excursion.route.distance,
+            duration: routeMetrics!.duration,
+            distance: routeMetrics!.distance,
             transport: excursion.route.transport,
             points: excursion.route.points.map((p) => ({
               ...p,
@@ -267,6 +280,8 @@ router.put('/:id/publish', requireAuth, requireRole('guide', 'admin'), async (re
     // Проверяем владельца перед публикацией:
     if (excursion.authorId !== userId) return res.status(404).json({ error: 'Excursion not found' });
 
+    // Для публикации используем расчет по сохраненным точкам:
+    const routeMetrics = excursion.route ? calculateRouteMetrics(excursion.route.points) : null;
     const snapshot = {
       id: excursion.id,
       title: excursion.title,
@@ -282,8 +297,8 @@ router.put('/:id/publish', requireAuth, requireRole('guide', 'admin'), async (re
             id: excursion.route.id,
             excursionId: excursion.id,
             routeGeo: JSON.parse(excursion.route.routeJson),
-            duration: excursion.route.duration,
-            distance: excursion.route.distance,
+            duration: routeMetrics!.duration,
+            distance: routeMetrics!.distance,
             transport: excursion.route.transport,
             points: excursion.route.points.map((p) => ({
               ...p,
@@ -293,14 +308,19 @@ router.put('/:id/publish', requireAuth, requireRole('guide', 'admin'), async (re
         : null,
     };
 
-    // Обновляем статус и сохраняем snapshot строкой:
-    await prisma.excursion.update({
-      where: { id: req.params.id },
-      data: {
-        status: 'published',
-        publishedSnapshot: JSON.stringify(snapshot),
-      },
-    });
+    // Обновляем snapshot и сохраненные показатели маршрута вместе:
+    await prisma.$transaction([
+      prisma.excursion.update({
+        where: { id: req.params.id },
+        data: {
+          status: 'published',
+          publishedSnapshot: JSON.stringify(snapshot),
+        },
+      }),
+      ...(excursion.route && routeMetrics
+        ? [prisma.route.update({ where: { id: excursion.route.id }, data: routeMetrics })]
+        : []),
+    ]);
 
     // Возвращаем опубликованную версию:
     res.json({ data: snapshot });
