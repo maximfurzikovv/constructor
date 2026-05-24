@@ -17,9 +17,13 @@ router.get('/constructor/data', requireAuth, requireRole('guide', 'admin'), asyn
   const userId = req.user!.id;
   // Сейчас используется демонстрационный автор user-1:
   const site = await prisma.showcaseSite.findFirst({ where: { authorId: userId } });
-  // Если сайт или JSON конструктора еще не создан, возвращаем null:
-  if (!site || !site.constructorJson) {
+  // Если личный сайт еще не создан, возвращаем null:
+  if (!site) {
     return res.json({ data: null });
+  }
+  // Если JSON конструктора еще не создан, возвращаем только личный slug:
+  if (!site.constructorJson) {
+    return res.json({ data: { siteSlug: site.slug } });
   }
   // constructorJson хранит структуру страниц, секций, колонок, элементов и темы:
   const data = JSON.parse(site.constructorJson);

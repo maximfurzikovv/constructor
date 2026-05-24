@@ -451,6 +451,16 @@ const LOCAL_DRAFT_KEY = 'site-builder-local-draft';
 // Ключ истории в браузере:
 const LOCAL_HISTORY_KEY = 'site-builder-local-history';
 
+// Возвращает id текущего пользователя для локального черновика:
+function getCurrentStorageUserId() {
+  try {
+    const user = JSON.parse(window.localStorage.getItem('user') || '{}'); // Пользователь из браузера
+    return user.id || user.email || 'guest'; // Безопасный ключ
+  } catch {
+    return 'guest'; // Запасной ключ
+  }
+}
+
 // Читает файл как data URL для фоновых изображений:
 function fileToDataUrl(file: File): Promise<string> {
   // Сжимаем крупные изображения перед сохранением в JSON:
@@ -782,7 +792,7 @@ export default function SiteBuilderPage() {
   // Все страницы конструктора:
   const [pages, setPages] = useState<BuilderPage[]>(getInitialPages);
   // Пользовательский адрес опубликованного сайта:
-  const [siteSlug, setSiteSlug] = useState('maxim-furzikov');
+  const [siteSlug, setSiteSlug] = useState('');
   // Id активной страницы:
   const [activePageId, setActivePageId] = useState('page-main');
   // Глобальная тема сайта:
@@ -825,13 +835,19 @@ export default function SiteBuilderPage() {
   const [cleanPreview, setCleanPreview] = useState(false);
   // Таймер локального автосохранения:
   const autoSaveTimerRef = useRef<number | null>(null);
+  // Ключ текущего пользователя для localStorage:
+  const storageUserId = useMemo(() => getCurrentStorageUserId(), []);
+  // Ключ черновика текущего пользователя:
+  const localDraftKey = `${LOCAL_DRAFT_KEY}:${storageUserId}`;
+  // Ключ истории текущего пользователя:
+  const localHistoryKey = `${LOCAL_HISTORY_KEY}:${storageUserId}`;
 
   // Загружает сайт, экскурсии и сохраненные данные конструктора:
   useEffect(() => {
     // Берем локальный черновик, если сервер еще не вернул данные:
-    const localDraft = window.localStorage.getItem(LOCAL_DRAFT_KEY);
+    const localDraft = window.localStorage.getItem(localDraftKey);
     // Берем локальную историю для undo после перезагрузки:
-    const localHistory = window.localStorage.getItem(LOCAL_HISTORY_KEY);
+    const localHistory = window.localStorage.getItem(localHistoryKey);
     // Восстанавливаем последнее локальное состояние:
     if (localDraft) {
       try {
@@ -840,7 +856,7 @@ export default function SiteBuilderPage() {
         if (parsed.theme) setTheme({ ...defaultTheme, ...parsed.theme });
         if (parsed.siteSlug) setSiteSlug(parsed.siteSlug);
       } catch {
-        window.localStorage.removeItem(LOCAL_DRAFT_KEY);
+        window.localStorage.removeItem(localDraftKey);
       }
     }
     // Восстанавливаем историю изменений:
@@ -850,37 +866,37 @@ export default function SiteBuilderPage() {
         setHistory(parsed.history || []);
         setHistoryIndex(parsed.historyIndex ?? -1);
       } catch {
-        window.localStorage.removeItem(LOCAL_HISTORY_KEY);
+        window.localStorage.removeItem(localHistoryKey);
       }
     }
-    api.getShowcase('maxim-furzikov')
-      .then((d: any) => setSite(d))
-      .catch(() => api.getShowcase('aleksey-petrov').then((d: any) => setSite({ ...d, title: 'Экскурсии Максима Фурзикова', slug: 'maxim-furzikov' })));
     api.getExcursions().then((d: any) => setTours(d));
     api.getConstructorData()
       .then((d: any) => {
         const loaded = loadBuilderPages(d);
         setPages(loaded);
         if (d?.theme) setTheme({ ...defaultTheme, ...d.theme });
-        if (d?.siteSlug) setSiteSlug(d.siteSlug);
+        if (d?.siteSlug) {
+          setSiteSlug(d.siteSlug);
+          setSite({ slug: d.siteSlug, title: theme.logoText || 'Сайт' });
+        }
         if (loaded.length > 0) setActivePageId(loaded[0].id);
       })
       .catch(() => {});
-  }, []);
+  }, [localDraftKey, localHistoryKey]);
 
   // Автосохраняет черновик в браузере:
   useEffect(() => {
     if (pages.length === 0) return;
     if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = window.setTimeout(() => {
-      window.localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify({ pages, theme, siteSlug, version: 2 }));
+      window.localStorage.setItem(localDraftKey, JSON.stringify({ pages, theme, siteSlug, version: 2 }));
     }, 700);
-  }, [pages, theme, siteSlug]);
+  }, [pages, theme, siteSlug, localDraftKey]);
 
   // Сохраняет историю в браузере:
   useEffect(() => {
-    window.localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify({ history, historyIndex }));
-  }, [history, historyIndex]);
+    window.localStorage.setItem(localHistoryKey, JSON.stringify({ history, historyIndex }));
+  }, [history, historyIndex, localHistoryKey]);
 
   // Сохраняет снимок состояния для undo/redo:
   useEffect(() => {
