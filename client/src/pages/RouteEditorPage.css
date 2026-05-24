@@ -47,15 +47,8 @@
   font-size: 12px;
 }
 
-.point-media-row audio,
-.point-media-row video {
+.point-media-row audio {
   width: 100%;
-}
-
-.point-media-row video {
-  max-height: 160px;
-  background: #0f172a;
-  border-radius: 6px;
 }
 
 .stop-list {
@@ -252,15 +245,8 @@
   background: var(--color-bg);
 }
 
-.point-media-row audio,
-.point-media-row video {
+.point-media-row audio {
   width: 100%;
-}
-
-.point-media-row video {
-  max-height: 180px;
-  border-radius: 8px;
-  background: #0f172a;
 }
 
 .point-media-row button {

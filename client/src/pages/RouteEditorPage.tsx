@@ -54,6 +54,32 @@ function isRawFileName(title: string) {
   return /(\.mp3|\.wav|\.m4a|\.ogg|\.webm|\.aac|\.mp4)$/i.test(title) || title.includes('_');
 }
 
+// Считает расстояние между двумя координатами:
+function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const radius = 6371000; // Радиус Земли в метрах
+  const dLat = ((lat2 - lat1) * Math.PI) / 180; // Разница широт
+  const dLng = ((lng2 - lng1) * Math.PI) / 180; // Разница долгот
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2; // Формула гаверсинусов
+  return 2 * radius * Math.asin(Math.sqrt(Math.min(1, Math.max(0, a)))); // Расстояние в метрах
+}
+
+// Считает длину маршрута по точкам:
+function routeDistanceMeters(points: Point[]) {
+  return points.slice(1).reduce((sum, point, index) => {
+    const prev = points[index]; // Предыдущая точка
+    return sum + distanceMeters(prev.lat, prev.lng, point.lat, point.lng);
+  }, 0);
+}
+
+// Считает длительность маршрута по остановкам:
+function routeDurationMinutes(points: Point[]) {
+  return points.reduce((sum, point) => sum + (Number(point.duration) || 0), 0);
+}
+
 export default function RouteEditorPage() {
   // id экскурсии из адреса страницы:
   const { excursionId } = useParams<{ excursionId: string }>();
@@ -183,7 +209,7 @@ export default function RouteEditorPage() {
     markDirty();
   };
 
-  // Загружает изображение, аудио или видео для выбранной точки:
+  // Загружает изображение или аудио для выбранной точки:
   const handleMediaUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files?.[0] || !selectedPoint || !excursion) return;
     setUploadingMedia(true);
@@ -368,19 +394,22 @@ export default function RouteEditorPage() {
     setSaving(true);
     setStatusMsg(null);
     try {
+      const sortedPoints = [...excursion.route.points].sort((a, b) => a.order - b.order);
+      const routeDuration = routeDurationMinutes(sortedPoints);
+      const routeDistance = routeDistanceMeters(sortedPoints);
+
       await api.updateExcursion(excursion.id, {
         title: excursion.title,
         description: excursion.description,
         city: excursion.city,
         status: excursion.status,
         route: {
-          duration: excursion.route.duration,
-          distance: excursion.route.distance,
+          duration: routeDuration,
+          distance: routeDistance,
           transport: excursion.route.transport,
         },
       });
 
-      const sortedPoints = [...excursion.route.points].sort((a, b) => a.order - b.order);
       const synced: any = await api.syncPoints(
         excursion.route.id,
         sortedPoints.map((point) => ({
@@ -404,6 +433,8 @@ export default function RouteEditorPage() {
               status: publish ? 'published' : prev.status,
               route: {
                 ...prev.route,
+                duration: routeDuration,
+                distance: routeDistance,
                 points: synced,
                 routeGeo: {
                   type: 'LineString',
@@ -443,8 +474,6 @@ export default function RouteEditorPage() {
   const center: [number, number] = points.length > 0 ? [points[0].lat, points[0].lng] : [59.939, 30.316];
   // Отдельно выбираем аудио выбранной точки:
   const audioMedia = (selectedPoint?.media || []).filter((media) => media.type === 'audio');
-  // Отдельно выбираем видео выбранной точки:
-  const videoMedia = (selectedPoint?.media || []).filter((media) => media.type === 'video');
 
   return (
     <div className="editor-layout">
@@ -644,9 +673,9 @@ export default function RouteEditorPage() {
                 ))}
               </div>
 
-              {(audioMedia.length > 0 || videoMedia.length > 0) && (
+              {audioMedia.length > 0 && (
                 <>
-                  <h4 style={{ margin: '8px 0 4px' }}>Аудио и видео</h4>
+                  <h4 style={{ margin: '8px 0 4px' }}>Аудио</h4>
                   <div className="point-media-list">
                     {audioMedia
                       .slice()
@@ -676,29 +705,13 @@ export default function RouteEditorPage() {
                           <button type="button" onClick={() => handleMediaDelete(media.id)}>Удалить</button>
                         </div>
                       ))}
-                    {videoMedia.map((media) => (
-                      <div key={media.id} className="point-media-row">
-                        <strong>Видео</strong>
-                        <Input
-                          label="Название видео"
-                          value={mediaTitleDrafts[media.id] ?? media.title}
-                          onChange={(event) => handleMediaTitleDraftChange(media.id, event.target.value)}
-                          onBlur={() => saveMediaTitle(media)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') event.currentTarget.blur();
-                          }}
-                        />
-                        <video src={`${SERVER_URL}${media.url}`} controls />
-                        <button type="button" onClick={() => handleMediaDelete(media.id)}>Удалить</button>
-                      </div>
-                    ))}
                   </div>
                 </>
               )}
 
               <input
                 type="file"
-                accept="image/*,audio/*,video/*"
+                accept="image/*,audio/*"
                 ref={fileInputRef}
                 onChange={handleMediaUpload}
                 style={{ display: 'none' }}
@@ -710,7 +723,7 @@ export default function RouteEditorPage() {
                 disabled={uploadingMedia || selectedPoint.id.startsWith('temp-')}
                 style={{ width: '100%' }}
               >
-                {uploadingMedia ? 'Загрузка...' : 'Загрузить фото, аудио или видео'}
+                {uploadingMedia ? 'Загрузка...' : 'Загрузить фото или аудио'}
               </Button>
               <Button
                 variant="secondary"
@@ -753,7 +766,7 @@ export default function RouteEditorPage() {
                           disabled={attached || locked}
                         >
                           <span className="media-picker-preview">
-                            {media.type === 'image' ? <img src={`${SERVER_URL}${media.url}`} alt={media.title} /> : media.type === 'audio' ? '♪' : '▶'}
+                            {media.type === 'image' ? <img src={`${SERVER_URL}${media.url}`} alt={media.title} /> : '♪'}
                           </span>
                           <span>
                             <strong>{media.title}</strong>

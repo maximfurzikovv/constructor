@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import { api } from '../../api/client';
 import Button from '../../components/ui/Button';
 import Input, { Textarea } from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
-import { sanitizeCustomCss } from '../../utils/contentSecurity';
 import './SiteBuilderPage.css';
 
 // Режим предпросмотра страницы:
@@ -102,6 +101,7 @@ interface ThemeConfig {
   headerNavStyle: 'links' | 'pills' | 'underline';
   headerNavVisible: boolean;
   headerNavGap: string;
+  logoType: 'text' | 'image';
   logoText: string;
   logoImage: string;
   favicon: string;
@@ -136,6 +136,7 @@ const defaultTheme: ThemeConfig = {
   headerNavStyle: 'links',
   headerNavVisible: true,
   headerNavGap: '16',
+  logoType: 'text',
   logoText: '',
   logoImage: '',
   favicon: '',
@@ -180,6 +181,9 @@ const elementGroups: { title: string; items: ElementType[] }[] = [
   { title: 'Структура', items: ['menu', 'list', 'embed'] },
   { title: 'Бизнес', items: ['tours', 'contacts', 'form', 'map', 'social'] },
 ];
+
+// Быстрый список поддерживаемых элементов:
+const supportedElementTypes = new Set<ElementType>(Object.keys(elementLabels) as ElementType[]);
 
 // Готовые шаблонные секции:
 const sectionTemplateGroups = [
@@ -227,6 +231,21 @@ function getMapEmbedUrl(data: Record<string, any>) {
   const lng = Number(data.lng) || 30.316;
   const delta = 0.018;
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}&layer=mapnik&marker=${lat}%2C${lng}`;
+}
+
+// Приводит ссылку на видео к embed-формату:
+function normalizeVideoUrl(url: string) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (value.includes('youtube.com/embed/') || value.includes('player.vimeo.com/video/')) return value;
+
+  const youtubeMatch = value.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]+)/);
+  if (youtubeMatch?.[1]) return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+
+  const vimeoMatch = value.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch?.[1]) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+
+  return value;
 }
 
 // Обновляет центр карты при изменении настроек:
@@ -732,7 +751,7 @@ function createSectionTemplate(template: string): BuilderSection {
       ];
       column.elements = [{
         ...createElement('box'),
-        data: { text: `★★★★★\n${texts[index]}\n${names[index]}` },
+        data: { text: `в…в…в…в…в…\n${texts[index]}\n${names[index]}` },
         style: { padding: 24, margin: 8, radius: 14, background: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0', shadow: '0 8px 24px rgba(15,23,42,0.12)', width: 100 },
       }];
     });
@@ -774,7 +793,20 @@ function loadBuilderPages(data: any): BuilderPage[] {
   // Берем только новую структуру pages -> sections -> columns -> elements:
   return data.pages.map((page: any) => {
     const sections = Array.isArray(page.sections) ? page.sections : [];
-    return { id: page.id, title: page.title, slug: page.slug || '', sections };
+    // Убирает старые неподдерживаемые элементы:
+    const cleanSections = sections.map((section: any) => ({
+      ...section,
+      columns: Array.isArray(section.columns)
+        ? section.columns.map((column: any) => ({
+            ...column,
+            elements: Array.isArray(column.elements)
+              ? column.elements.filter((element: any) => supportedElementTypes.has(element?.type))
+              : [],
+          }))
+        : [],
+    }));
+
+    return { id: page.id, title: page.title, slug: page.slug || '', sections: cleanSections };
   });
 }
 
@@ -810,6 +842,8 @@ export default function SiteBuilderPage() {
   const [siteSlug, setSiteSlug] = useState('');
   // Id активной страницы:
   const [activePageId, setActivePageId] = useState('page-main');
+  // Открытие списка страниц в панели инструментов:
+  const [pageMenuOpen, setPageMenuOpen] = useState(false);
   // Глобальная тема сайта:
   const [theme, setTheme] = useState<ThemeConfig>(defaultTheme);
   // Активная вкладка левой панели:
@@ -850,12 +884,30 @@ export default function SiteBuilderPage() {
   const [cleanPreview, setCleanPreview] = useState(false);
   // Таймер локального автосохранения:
   const autoSaveTimerRef = useRef<number | null>(null);
+  // Контейнер списка страниц:
+  const pageMenuRef = useRef<HTMLDivElement | null>(null);
   // Ключ текущего пользователя для localStorage:
   const storageUserId = useMemo(() => getCurrentStorageUserId(), []);
   // Ключ черновика текущего пользователя:
   const localDraftKey = `${LOCAL_DRAFT_KEY}:${storageUserId}`;
   // Ключ истории текущего пользователя:
   const localHistoryKey = `${LOCAL_HISTORY_KEY}:${storageUserId}`;
+
+  // Закрывает список страниц вне панели выбора:
+  useEffect(() => {
+    const closeMenu = (event: MouseEvent) => {
+      if (!pageMenuRef.current?.contains(event.target as Node)) setPageMenuOpen(false);
+    };
+    const closeMenuOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPageMenuOpen(false);
+    };
+    document.addEventListener('mousedown', closeMenu);
+    document.addEventListener('keydown', closeMenuOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeMenu);
+      document.removeEventListener('keydown', closeMenuOnEscape);
+    };
+  }, []);
 
   // Загружает сайт, экскурсии и сохраненные данные конструктора:
   useEffect(() => {
@@ -951,7 +1003,6 @@ export default function SiteBuilderPage() {
   }, [activePage, selection]);
 
   // Нчищенный CSS для предпросмотра:
-  const safeCustomCss = useMemo(() => sanitizeCustomCss(theme.customCss || ''), [theme.customCss]);
 
   // Обновляет только активную страницу:
   const updateActivePage = (updater: (page: BuilderPage) => BuilderPage) => {
@@ -1289,7 +1340,7 @@ export default function SiteBuilderPage() {
   };
 
   // Общие данные для сохранения и публикации:
-  const savePayload = { pages, theme, siteSlug, version: 2 };
+  const savePayload = { pages, theme: { ...theme, customCss: '' }, siteSlug, version: 2 };
 
   // После рендера чинит подписи интерфейса конструктора:
   useEffect(() => {
@@ -1491,14 +1542,40 @@ export default function SiteBuilderPage() {
               {'<'}
             </button>
           )}
-          <div className="preview-page-tabs">
-            {pages.map((page) => (
-              <button key={page.id} className={`preview-page-tab ${activePageId === page.id ? 'active' : ''}`} onClick={() => setActivePageId(page.id)}>
-                {page.title}
-              </button>
-            ))}
-          </div>
           <div className="preview-actions">
+            {/* Переключатель редактируемой страницы: */}
+            <div ref={pageMenuRef} className={`toolbar-page-select ${pageMenuOpen ? 'open' : ''}`}>
+              <button
+                className="toolbar-page-trigger"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded={pageMenuOpen}
+                onClick={() => setPageMenuOpen((open) => !open)}
+                title="Выберите страницу"
+              >
+                <span>{activePage.title || 'Страница'}</span>
+              </button>
+              {pageMenuOpen && (
+                <div className="toolbar-page-menu" role="listbox" aria-label="Страницы сайта">
+                  {pages.map((page) => (
+                    <button
+                      key={page.id}
+                      className={`toolbar-page-option ${page.id === activePageId ? 'active' : ''}`}
+                      type="button"
+                      role="option"
+                      aria-selected={page.id === activePageId}
+                      onClick={() => {
+                        setActivePageId(page.id);
+                        setSelection(null);
+                        setPageMenuOpen(false);
+                      }}
+                    >
+                      {page.title || 'Страница'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="history-actions">
               <button type="button" onClick={undo} disabled={historyIndex <= 0} title="Отменить" aria-label="Отменить">↶</button>
               <button type="button" onClick={redo} disabled={historyIndex >= history.length - 1} title="Вернуть" aria-label="Вернуть">↷</button>
@@ -1559,8 +1636,6 @@ export default function SiteBuilderPage() {
             transformOrigin: 'top center',
           } as React.CSSProperties}
         >
-          {/* Пользовательский CSS подключается прямо в предпросмотр: */}
-          {safeCustomCss && <style>{safeCustomCss}</style>}
           {/* Шапка сайта редактируется отдельно от секций: */}
           <div className={`preview-block-header ${selection?.type === 'header' ? 'selected' : ''}`} onClick={() => setSelection({ type: 'header' })}>
             <div
@@ -1568,8 +1643,7 @@ export default function SiteBuilderPage() {
               style={{ background: theme.headerBg, color: theme.headerTextColor } as React.CSSProperties}
             >
               <span className="preview-site-logo">
-                {theme.logoImage && <img src={theme.logoImage} alt="" className="preview-logo-img" />}
-                {theme.logoText || site.title}
+                {theme.logoType === 'image' && theme.logoImage ? <img src={theme.logoImage} alt="" className="preview-logo-img" /> : (theme.logoText || site.title)}
               </span>
               {theme.headerNavVisible && (
                 <div
@@ -1698,9 +1772,13 @@ function ElementPreview({ element, tours, slug, primary }: { element: BuilderEle
   }
   if (element.type === 'image') {
     return element.data.src ? (
-      <img className="b-el-image" src={element.data.src} alt={element.data.alt || ''} style={{ ...css, objectFit: element.data.fit || 'cover' }} />
+      <div className="b-el-image-wrap" style={{ textAlign: element.style.align || 'left' }}>
+        <img className="b-el-image" src={element.data.src} alt={element.data.alt || ''} style={{ ...css, objectFit: element.data.fit || 'cover' }} />
+      </div>
     ) : (
-      <div className="b-el-image-placeholder" style={css}>Изображение</div>
+      <div className="b-el-image-wrap" style={{ textAlign: element.style.align || 'left' }}>
+        <div className="b-el-image-placeholder" style={css}>Изображение</div>
+      </div>
     );
   }
   if (element.type === 'gallery') {
@@ -1715,9 +1793,10 @@ function ElementPreview({ element, tours, slug, primary }: { element: BuilderEle
     );
   }
   if (element.type === 'video') {
+    const videoUrl = normalizeVideoUrl(element.data.url || '');
     return (
       <div className="b-el-video" style={css}>
-        {element.data.url ? <iframe src={element.data.url} title={element.data.title || 'Видео'} /> : <div className="b-el-image-placeholder">Видео</div>}
+        {videoUrl ? <iframe src={videoUrl} title={element.data.title || 'Видео'} allowFullScreen /> : <div className="b-el-image-placeholder">Вставьте ссылку на видео</div>}
       </div>
     );
   }
@@ -1825,9 +1904,20 @@ function ThemeEditor({ theme, setTheme, siteTitle, uploadSingleImage }: { theme:
           <option value="dark">Темная</option>
         </select>
       </div>
-      <Input label="Текст логотипа" value={theme.logoText} placeholder={siteTitle} onChange={(event) => setTheme({ ...theme, logoText: event.target.value })} />
-      <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((logoImage) => setTheme({ ...theme, logoImage }))}>Загрузить логотип</Button>
-      {theme.logoImage && <Button variant="ghost" size="sm" onClick={() => setTheme({ ...theme, logoImage: '' })}>Убрать логотип</Button>}
+      <div className="theme-field">
+        <label>Тип логотипа</label>
+        <select className="theme-select" value={theme.logoType || 'text'} onChange={(event) => setTheme({ ...theme, logoType: event.target.value as ThemeConfig['logoType'] })}>
+          <option value="text">Надпись</option>
+          <option value="image">Картинка</option>
+        </select>
+      </div>
+      {(theme.logoType || 'text') === 'text' && <Input label="Текст логотипа" value={theme.logoText} placeholder={siteTitle} onChange={(event) => setTheme({ ...theme, logoText: event.target.value })} />}
+      {theme.logoType === 'image' && (
+        <>
+          <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((logoImage) => setTheme({ ...theme, logoType: 'image', logoImage }))}>Загрузить логотип</Button>
+          {theme.logoImage && <Button variant="ghost" size="sm" onClick={() => setTheme({ ...theme, logoImage: '' })}>Убрать логотип</Button>}
+        </>
+      )}
     </div>
   );
 }
@@ -1867,7 +1957,6 @@ function GeneralThemeEditor({
         </select>
       </div>
       <NumberField label="Скругление по умолчанию" value={Number(theme.borderRadius)} onChange={(borderRadius) => setTheme({ ...theme, borderRadius: String(borderRadius) })} min={0} max={32} />
-      <Textarea label="Пользовательский CSS" value={theme.customCss} rows={7} onChange={(event) => setTheme({ ...theme, customCss: event.target.value })} placeholder=".builder-section { ... }" />
     </div>
   );
 }
@@ -1878,9 +1967,20 @@ function HeaderEditor({ theme, setTheme, siteTitle, uploadSingleImage }: { theme
       <p className="panel-label">Оформление шапки</p>
       <ColorField label="Фон шапки" value={theme.headerBg} onChange={(headerBg) => setTheme({ ...theme, headerBg })} />
       <ColorField label="Цвет текста" value={theme.headerTextColor} onChange={(headerTextColor) => setTheme({ ...theme, headerTextColor })} />
-      <Input label="Текст логотипа" value={theme.logoText} placeholder={siteTitle} onChange={(event) => setTheme({ ...theme, logoText: event.target.value })} />
-      <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((logoImage) => setTheme({ ...theme, logoImage }))}>Загрузить логотип</Button>
-      {theme.logoImage && <Button variant="ghost" size="sm" onClick={() => setTheme({ ...theme, logoImage: '' })}>Убрать логотип</Button>}
+      <div className="theme-field">
+        <label>Тип логотипа</label>
+        <select className="theme-select" value={theme.logoType || 'text'} onChange={(event) => setTheme({ ...theme, logoType: event.target.value as ThemeConfig['logoType'] })}>
+          <option value="text">Надпись</option>
+          <option value="image">Картинка</option>
+        </select>
+      </div>
+      {(theme.logoType || 'text') === 'text' && <Input label="Текст логотипа" value={theme.logoText} placeholder={siteTitle} onChange={(event) => setTheme({ ...theme, logoText: event.target.value })} />}
+      {theme.logoType === 'image' && (
+        <>
+          <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((logoImage) => setTheme({ ...theme, logoType: 'image', logoImage }))}>Загрузить логотип</Button>
+          {theme.logoImage && <Button variant="ghost" size="sm" onClick={() => setTheme({ ...theme, logoImage: '' })}>Убрать логотип</Button>}
+        </>
+      )}
       <label className="check-field">
         <input type="checkbox" checked={theme.headerNavVisible} onChange={(event) => setTheme({ ...theme, headerNavVisible: event.target.checked })} />
         Показывать ссылки
@@ -2080,8 +2180,8 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
   if (element.type === 'video') {
     return (
       <>
-        <Input label="Embed URL" value={element.data.url} placeholder="https://www.youtube.com/embed/..." onChange={(event) => updateData(element.id, 'url', event.target.value)} />
-        <Input label="Название" value={element.data.title} onChange={(event) => updateData(element.id, 'title', event.target.value)} />
+        <Input label="Ссылка на видео" value={element.data.url || ''} placeholder="https://www.youtube.com/watch?v=..." onChange={(event) => updateData(element.id, 'url', event.target.value)} />
+        <Input label="Название" value={element.data.title || ''} onChange={(event) => updateData(element.id, 'title', event.target.value)} />
       </>
     );
   }
@@ -2282,4 +2382,3 @@ function ColorField({ label, value, onChange, allowTransparent }: { label: strin
     </div>
   );
 }
-

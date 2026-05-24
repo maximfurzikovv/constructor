@@ -79,7 +79,7 @@ export default function MediaLibraryPage() {
       {/* Заголовок страницы: */}
       <h1>Медиатека</h1>
       {/* Краткое описание: */}
-      <p className="media-subtitle">Фотографии, видео и аудио для ваших экскурсий</p>
+      <p className="media-subtitle">Фотографии и аудио для ваших экскурсий</p>
 
       {/* Блок загрузки файла: */}
       <Card className="media-toolbar">
@@ -101,13 +101,12 @@ export default function MediaLibraryPage() {
             <option value="all">Все типы</option>
             <option value="image">Изображения</option>
             <option value="audio">Аудио</option>
-            <option value="video">Видео</option>
           </select>
         </label>
 
         <input
           type="file"
-          accept="image/*,audio/*,video/*"
+          accept="image/*,audio/*"
           ref={fileInputRef}
           onChange={handleUpload}
           style={{ display: 'none' }}
@@ -143,10 +142,6 @@ export default function MediaLibraryPage() {
             {item.type === 'audio' && (
               <div className="media-thumb media-audio">♪</div>
             )}
-            {/* Заглушка видео: */}
-            {item.type === 'video' && (
-              <div className="media-thumb media-video">▶</div>
-            )}
             {/* Информация о файле: */}
             <div className="media-info">
               <h4>{item.title}</h4>
@@ -175,7 +170,7 @@ export default function MediaLibraryPage() {
       {visibleMedia.length === 0 && (
         <Card className="media-empty">
           <p>Медиафайлы пока не загружены</p>
-          <span>Выберите экскурсию и загрузите изображения, аудио или видео.</span>
+          <span>Выберите экскурсию и загрузите изображения или аудио.</span>
         </Card>
       )}
     </div>

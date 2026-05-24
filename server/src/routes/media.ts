@@ -7,7 +7,7 @@ import { AuthRequest, requireAuth, requireRole } from '../authSecurity';
 
 const router = Router();
 // Разрешенные типы медиафайлов:
-const allowedMimePrefixes = ['image/', 'audio/', 'video/'];
+const allowedMimePrefixes = ['image/', 'audio/'];
 // Максимальный размер файла в байтах:
 const maxUploadSize = 8 * 1024 * 1024;
 
@@ -86,7 +86,7 @@ router.get('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthR
 router.post('/upload', requireAuth, requireRole('guide', 'admin'), upload.single('file'), async (req: AuthRequest, res) => {
   // Без файла загрузка не имеет смысла:
   if (!req.file) return res.status(400).json({ error: 'File is required' });
-  // MIME-тип должен быть изображением, аудио или видео:
+  // MIME-тип должен быть изображением или аудио:
   if (!isAllowedMime(req.file.mimetype)) return res.status(400).json({ error: 'Unsupported file type' });
   // Дополнительная проверка размера дублирует multer-limit:
   if (req.file.size > maxUploadSize) return res.status(400).json({ error: 'File is too large' });
@@ -103,11 +103,7 @@ router.post('/upload', requireAuth, requireRole('guide', 'admin'), upload.single
   // Файл кодируется в data URL, чтобы храниться прямо в PostgreSQL:
   const url = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
   // Тип определяется по MIME type загруженного файла:
-  const type = req.file.mimetype.startsWith('image/')
-    ? 'image'
-    : req.file.mimetype.startsWith('audio/')
-      ? 'audio'
-      : 'video';
+  const type = req.file.mimetype.startsWith('image/') ? 'image' : 'audio';
 
   // Создаем запись медиа в базе:
   const item = await prisma.media.create({

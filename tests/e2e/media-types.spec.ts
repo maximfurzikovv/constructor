@@ -19,8 +19,8 @@ async function uploadMedia(request: APIRequestContext, token: string, excursionI
   return (await response.json()).data;
 }
 
-// Проверяет медиа разных типов:
-test('media: image, audio and video files can be attached to a point', async ({ request }) => {
+// Проверяет поддерживаемые типы медиа:
+test('media: image and audio files can be attached to a point', async ({ request }) => {
   // Создаем экскурсию:
   const excursion = await createPublishedExcursion();
   // Получаем токен:
@@ -37,15 +37,10 @@ test('media: image, audio and video files can be attached to a point', async ({ 
     const image = await uploadMedia(request, token, excursion.id, point.id, 'test-image.png', 'image/png', Buffer.from([137, 80, 78, 71]));
     // Загружаем аудио:
     const audio = await uploadMedia(request, token, excursion.id, point.id, 'test-audio.mp3', 'audio/mpeg', Buffer.from('fake-audio'));
-    // Загружаем видео:
-    const video = await uploadMedia(request, token, excursion.id, point.id, 'test-video.mp4', 'video/mp4', Buffer.from('fake-video'));
-
     // Проверяем тип изображения:
     expect(image.type).toBe('image');
     // Проверяем тип аудио:
     expect(audio.type).toBe('audio');
-    // Проверяем тип видео:
-    expect(video.type).toBe('video');
   } finally {
     // Удаляем экскурсию:
     await deleteExcursion(excursion.id);

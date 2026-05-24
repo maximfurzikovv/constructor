@@ -370,9 +370,10 @@
 }
 
 .sc-el-image {
-  display: block;
+  display: inline-block;
   min-height: 180px;
   max-height: 520px;
+  vertical-align: top;
 }
 
 .sc-el-gallery-grid,

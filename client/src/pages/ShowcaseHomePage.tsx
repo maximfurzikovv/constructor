@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import { api } from '../api/client';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
-import { sanitizeCustomCss, sanitizeEmbedHtml } from '../utils/contentSecurity';
+import { sanitizeEmbedHtml } from '../utils/contentSecurity';
 import './ShowcaseHomePage.css';
 
 // Обновляет favicon сайта:
@@ -20,7 +20,7 @@ function setFavicon(href: string) {
 
 export default function ShowcaseHomePage() {
   // Slug определяет опубликованный сайт в адресной строке:
-  const { slug } = useParams<{ slug: string }>();
+  const { slug, pageSlug } = useParams<{ slug: string; pageSlug?: string }>();
   // Храним данные опубликованной витрины:
   const [site, setSite] = useState<any>(null);
 
@@ -36,7 +36,7 @@ export default function ShowcaseHomePage() {
 
   // Если сайт собран новым конструктором, рендерим его секциями:
   if (cd && cd.pages && cd.pages.length > 0) {
-    return <ConstructorSite site={site} constructorData={cd} slug={slug!} />;
+    return <ConstructorSite site={site} constructorData={cd} slug={slug!} pageSlug={pageSlug || ''} />;
   }
 
   return (
@@ -79,7 +79,8 @@ export default function ShowcaseHomePage() {
   );
 }
 
-function ConstructorSite({ site, constructorData, slug }: { site: any; constructorData: any; slug: string }) {
+function ConstructorSite({ site, constructorData, slug, pageSlug }: { site: any; constructorData: any; slug: string; pageSlug: string }) {
+  const navigate = useNavigate();
   // Активная страница опубликованного сайта:
   const [activePageId, setActivePageId] = useState(constructorData.pages[0]?.id || '');
   // Находим страницу по id или берем первую:
@@ -88,6 +89,17 @@ function ConstructorSite({ site, constructorData, slug }: { site: any; construct
   const theme = constructorData.theme || {};
   // Экскурсии нужны для элемента списка туров:
   const excursions = site.excursionDetails || [];
+  // Синхронизирует выбранную страницу с URL:
+  useEffect(() => {
+    const cleanSlug = (pageSlug || '').replace(/^\/+|\/+$/g, '');
+    const nextPage = constructorData.pages.find((p: any) => (p.slug || '').replace(/^\/+|\/+$/g, '') === cleanSlug);
+    setActivePageId((nextPage || constructorData.pages[0])?.id || '');
+  }, [constructorData.pages, pageSlug]);
+  // Открывает страницу и меняет адрес:
+  const openPage = (page: any) => {
+    const cleanSlug = (page.slug || '').replace(/^\/+|\/+$/g, '');
+    navigate(cleanSlug ? `/s/${slug}/${cleanSlug}` : `/s/${slug}`);
+  };
   // Обновляет заголовок вкладки:
   useEffect(() => {
     document.title = activePage.title || site.title; // Название вкладки
@@ -102,8 +114,6 @@ function ConstructorSite({ site, constructorData, slug }: { site: any; construct
       ? 'monospace'
       : 'inherit';
   // Очищаем CSS перед вставкой:
-  const safeCustomCss = sanitizeCustomCss(theme.customCss || '');
-
   return (
     <div
       className="showcase-constructor"
@@ -118,13 +128,10 @@ function ConstructorSite({ site, constructorData, slug }: { site: any; construct
         '--sc-header-gap': `${theme.headerNavGap || 16}px`,
       } as React.CSSProperties}
     >
-      {/* Пользовательский CSS применяется к опубликованному сайту: */}
-      {safeCustomCss ? <style>{safeCustomCss}</style> : null}
       {/* Шапка опубликованного сайта: */}
       <div className={`sc-header ${theme.headerStyle === 'dark' ? 'dark' : ''} nav-${theme.headerNavAlign || 'right'}`}>
         <span className="sc-header-logo">
-          {theme.logoImage ? <img src={theme.logoImage} alt="" className="sc-logo-img" /> : null}
-          {theme.logoText || site.title}
+          {theme.logoType === 'image' && theme.logoImage ? <img src={theme.logoImage} alt="" className="sc-logo-img" /> : (theme.logoText || site.title)}
         </span>
         {theme.headerNavVisible !== false && (
           <div className={`sc-header-nav nav-style-${theme.headerNavStyle || 'links'}`}>
@@ -132,7 +139,7 @@ function ConstructorSite({ site, constructorData, slug }: { site: any; construct
               <button
                 key={p.id}
                 className={`sc-nav-link ${activePageId === p.id ? 'active' : ''}`}
-                onClick={() => setActivePageId(p.id)}
+                onClick={() => openPage(p)}
               >
                 {p.title}
               </button>
@@ -172,6 +179,16 @@ function SectionRenderer({ page, excursions, slug, primary }: { page: any; excur
   );
 }
 
+// Приводит ссылки кнопок к адресу опубликованного сайта:
+function resolveSiteHref(href: string, slug: string) {
+  const value = String(href || '#').trim();
+  if (!value || value === '#') return '#';
+  if (value.startsWith('#') || value.startsWith('http://') || value.startsWith('https://') || value.startsWith('mailto:') || value.startsWith('tel:')) return value;
+  if (value.startsWith('/s/')) return value;
+  const page = value.replace(/^\/+|\/+$/g, '');
+  return page ? `/s/${slug}/${page}` : `/s/${slug}`;
+}
+
 function PublicElement({ element, excursions, slug, primary }: { element: any; excursions: any[]; slug: string; primary: string }) {
   // Общие стили элемента переводятся в CSS:
   const css = styleToCss(element.style, primary);
@@ -189,7 +206,7 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
   if (element.type === 'button') {
     return (
       <div style={{ textAlign: element.style?.align || 'left' }}>
-        <a className={`sc-el-button ${element.data.variant === 'outline' ? 'outline' : ''}`} href={element.data.href || '#'} style={css}>
+        <a className={`sc-el-button ${element.data.variant === 'outline' ? 'outline' : ''}`} href={resolveSiteHref(element.data.href || '#', slug)} style={css}>
           {element.data.text}
         </a>
       </div>
@@ -205,7 +222,7 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
     return (
       <div style={{ textAlign: element.style?.align || 'left' }}>
         {element.data.mode === 'link' ? (
-          <a className="sc-el-button outline" href={element.data.href || '/'} style={css}>← {element.data.text || 'Назад'}</a>
+          <a className="sc-el-button outline" href={resolveSiteHref(element.data.href || '/', slug)} style={css}>← {element.data.text || 'Назад'}</a>
         ) : (
           <button className="sc-el-button outline" type="button" onClick={handleClick} style={css}>← {element.data.text || 'Назад'}</button>
         )}
@@ -215,7 +232,9 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
   // Одиночное изображение:
   if (element.type === 'image') {
     return element.data.src ? (
-      <img className="sc-el-image" src={element.data.src} alt={element.data.alt || ''} style={{ ...css, objectFit: element.data.fit || 'cover' }} />
+      <div className="sc-el-image-wrap" style={{ textAlign: element.style?.align || 'left' }}>
+        <img className="sc-el-image" src={element.data.src} alt={element.data.alt || ''} style={{ ...css, objectFit: element.data.fit || 'cover' }} />
+      </div>
     ) : null;
   }
   // Галерея изображений:
@@ -230,11 +249,12 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
       </div>
     );
   }
-  // Видеофрагмент через iframe:
+  // Видеофрагмент по внешней ссылке:
   if (element.type === 'video') {
+    const videoUrl = normalizeVideoUrl(element.data.url || '');
     return (
       <div className="sc-el-video" style={css}>
-        {element.data.url ? <iframe src={element.data.url} title={element.data.title || 'Видео'} /> : null}
+        {videoUrl ? <iframe src={videoUrl} title={element.data.title || 'Видео'} allowFullScreen /> : null}
       </div>
     );
   }
@@ -366,6 +386,21 @@ function getMapEmbedUrl(data: Record<string, any>) {
   const lng = Number(data.lng) || 30.316;
   const delta = 0.018;
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}&layer=mapnik&marker=${lat}%2C${lng}`;
+}
+
+// Приводит ссылку на видео к embed-формату:
+function normalizeVideoUrl(url: string) {
+  const value = String(url || '').trim();
+  if (!value) return '';
+  if (value.includes('youtube.com/embed/') || value.includes('player.vimeo.com/video/')) return value;
+
+  const youtubeMatch = value.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]+)/);
+  if (youtubeMatch?.[1]) return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+
+  const vimeoMatch = value.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch?.[1]) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+
+  return value;
 }
 
 // Синхронизирует центр и масштаб Leaflet-карты:

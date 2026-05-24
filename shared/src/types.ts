@@ -51,7 +51,7 @@ export interface MediaItem {
   id: string;
   pointId?: string;
   excursionId: string;
-  type: 'image' | 'audio' | 'video'; // Тип
+  type: 'image' | 'audio'; // Тип
   url: string; // Ссылка на файл
   title: string;
   description?: string;

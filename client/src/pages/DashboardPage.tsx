@@ -16,46 +16,48 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null); // Статистика с сервера
   const [excursions, setExcursions] = useState<Excursion[]>([]); // Экскурсии автора
 
-  // Загружает реальные данные автора:
+  // Загружает реальные данные текущего пользователя:
   useEffect(() => {
     api.getStats().then((data: any) => setStats(data));
     api.getExcursions().then((data: any) => setExcursions(data));
   }, []);
 
-  // Рассчитывает показатели личного кабинета:
+  // Рассчитывает показатели кабинета:
   const analytics = useMemo(() => {
     const total = excursions.length; // Всего экскурсий
-    const published = excursions.filter((item: any) => item.status === 'published').length; // Опубликованные экскурсии
+    const published = excursions.filter((item: any) => item.status === 'published').length; // Опубликовано
     const drafts = excursions.filter((item: any) => item.status !== 'published'); // Черновики
-    const withoutPoints = excursions.filter((item: any) => (item.route?.pointsCount || 0) === 0); // Без точек
+    const withoutPoints = excursions.filter((item: any) => (item.route?.pointsCount || item.route?.points?.length || 0) === 0); // Без точек
     const withoutCover = excursions.filter((item: any) => !item.coverImage); // Без обложки
     const totalDistance = excursions.reduce((sum: number, item: any) => sum + (item.route?.distance || 0), 0); // Общая длина
     const totalDuration = excursions.reduce((sum: number, item: any) => sum + (item.route?.duration || 0), 0); // Общее время
-    const totalPoints = stats?.totalPoints ?? excursions.reduce((sum: number, item: any) => sum + (item.route?.pointsCount || 0), 0); // Точки
+    const totalPoints = stats?.totalPoints ?? excursions.reduce((sum: number, item: any) => sum + (item.route?.pointsCount || item.route?.points?.length || 0), 0); // Точки
     const readyPercent = total ? Math.round((published / total) * 100) : 0; // Готовность
 
     return { total, published, drafts, withoutPoints, withoutCover, totalDistance, totalDuration, totalPoints, readyPercent };
   }, [excursions, stats]);
 
-  // Формирует список действий для автора:
+  const hasExcursions = analytics.total > 0; // Есть ли материалы
+
+  // Формирует подсказки для автора:
   const actionItems = [
     {
       title: 'Опубликовать готовые экскурсии',
-      text: analytics.drafts.length ? `${analytics.drafts.length} экскурсии(-я) ждут проверки перед публикацией` : 'Все готовые экскурсии уже опубликованы',
+      text: !hasExcursions ? 'Создайте первую экскурсию, чтобы ее можно было опубликовать' : analytics.drafts.length ? `${analytics.drafts.length} экскурсии(-я) ждут публикации` : 'Все готовые экскурсии уже опубликованы',
       link: '/admin/excursions',
-      tone: analytics.drafts.length ? 'warn' : 'ok',
+      tone: !hasExcursions || analytics.drafts.length ? 'warn' : 'ok',
     },
     {
       title: 'Заполнить маршруты',
-      text: analytics.withoutPoints.length ? `${analytics.withoutPoints.length} маршрута(-ов) без точек интереса` : 'У всех маршрутов есть точки интереса',
+      text: !hasExcursions ? 'После создания экскурсии добавьте точки интереса на карту' : analytics.withoutPoints.length ? `${analytics.withoutPoints.length} маршрута(-ов) без точек интереса` : 'У всех маршрутов есть точки интереса',
       link: '/admin/excursions',
-      tone: analytics.withoutPoints.length ? 'warn' : 'ok',
+      tone: !hasExcursions || analytics.withoutPoints.length ? 'warn' : 'ok',
     },
     {
       title: 'Добавить обложки',
-      text: analytics.withoutCover.length ? `${analytics.withoutCover.length} экскурсии без обложки` : 'У экскурсий добавлены обложки',
+      text: !hasExcursions ? 'Обложки появятся после добавления экскурсий' : analytics.withoutCover.length ? `${analytics.withoutCover.length} экскурсии без обложки` : 'У экскурсий добавлены обложки',
       link: '/admin/excursions',
-      tone: analytics.withoutCover.length ? 'warn' : 'ok',
+      tone: !hasExcursions || analytics.withoutCover.length ? 'warn' : 'ok',
     },
     {
       title: 'Пополнить медиатеку',
@@ -65,8 +67,7 @@ export default function DashboardPage() {
     },
   ];
 
-  // Берет последние измененные экскурсии:
-  const recentExcursions = excursions.slice(0, 4);
+  const recentExcursions = excursions.slice(0, 4); // Последние экскурсии
 
   return (
     <div className="dashboard">
@@ -74,7 +75,7 @@ export default function DashboardPage() {
         <div>
           <span className="dash-eyebrow">Личный кабинет</span>
           <h1>Рабочая область</h1>
-          <p>Здесь можно быстро перейти к созданию экскурсий, наполнению медиатеки, настройке сайта и публикации готовых материалов</p>
+          <p>Здесь можно быстро перейти к созданию экскурсий, наполнению медиатеки, настройке сайта и публикации готовых материалов.</p>
         </div>
         <div className="hero-summary">
           <strong>{analytics.readyPercent}%</strong>
@@ -101,7 +102,7 @@ export default function DashboardPage() {
           <div className="card-title-row">
             <div>
               <h2>Что подготовить</h2>
-              <p>Какие материалы лучше заполнить перед показом экскурсии посетителям</p>
+              <p>Какие материалы лучше заполнить перед показом экскурсии посетителям.</p>
             </div>
           </div>
           <div className="todo-list">
@@ -121,7 +122,7 @@ export default function DashboardPage() {
           <div className="card-title-row">
             <div>
               <h2>Последние экскурсии</h2>
-              <p>Быстрый переход к маршрутам, которые недавно редактировались</p>
+              <p>Быстрый переход к недавно измененным маршрутам.</p>
             </div>
             <Link to="/admin/excursions">Все</Link>
           </div>
@@ -133,7 +134,7 @@ export default function DashboardPage() {
                   <span className="tour-row-city">{exc.city || 'Город не указан'}</span>
                 </div>
                 <div className="tour-row-meta">
-                  <span>{exc.route?.pointsCount || 0} точек</span>
+                  <span>{exc.route?.pointsCount || exc.route?.points?.length || 0} точек</span>
                   <StatusBadge status={exc.status} />
                 </div>
               </div>

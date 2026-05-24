@@ -50,6 +50,8 @@ export default function App() {
       <Route path="/s/:slug" element={<ShowcaseLayout />}>
         {/* Главная публичная страница: */}
         <Route index element={<ShowcaseHomePage />} />
+        {/* Внутренняя страница публичного сайта: */}
+        <Route path=":pageSlug" element={<ShowcaseHomePage />} />
         {/* Публичная карточка экскурсии: */}
         <Route path="excursion/:excursionId" element={<ExcursionDetailPage />} />
       </Route>
