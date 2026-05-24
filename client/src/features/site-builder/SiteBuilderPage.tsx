@@ -461,6 +461,21 @@ function getCurrentStorageUserId() {
   }
 }
 
+// Безопасно записывает значение в localStorage:
+function safeSetLocalStorage(key: string, value: string, cleanupKey?: string) {
+  try {
+    window.localStorage.setItem(key, value); // Обычная запись
+  } catch (error: any) {
+    if (error?.name !== 'QuotaExceededError') return; // Игнорируем не связанную ошибку
+    if (cleanupKey) window.localStorage.removeItem(cleanupKey); // Удаляем тяжелую историю
+    try {
+      window.localStorage.setItem(key, value); // Повторная запись после очистки
+    } catch {
+      console.warn('Черновик слишком большой для localStorage'); // Диагностика лимита браузера
+    }
+  }
+}
+
 // Читает файл как data URL для фоновых изображений:
 function fileToDataUrl(file: File): Promise<string> {
   // Сжимаем крупные изображения перед сохранением в JSON:
@@ -846,8 +861,8 @@ export default function SiteBuilderPage() {
   useEffect(() => {
     // Берем локальный черновик, если сервер еще не вернул данные:
     const localDraft = window.localStorage.getItem(localDraftKey);
-    // Берем локальную историю для undo после перезагрузки:
-    const localHistory = window.localStorage.getItem(localHistoryKey);
+    // Удаляем старую тяжелую историю, чтобы не переполнить localStorage:
+    window.localStorage.removeItem(localHistoryKey);
     // Восстанавливаем последнее локальное состояние:
     if (localDraft) {
       try {
@@ -857,16 +872,6 @@ export default function SiteBuilderPage() {
         if (parsed.siteSlug) setSiteSlug(parsed.siteSlug);
       } catch {
         window.localStorage.removeItem(localDraftKey);
-      }
-    }
-    // Восстанавливаем историю изменений:
-    if (localHistory) {
-      try {
-        const parsed = JSON.parse(localHistory);
-        setHistory(parsed.history || []);
-        setHistoryIndex(parsed.historyIndex ?? -1);
-      } catch {
-        window.localStorage.removeItem(localHistoryKey);
       }
     }
     api.getExcursions().then((d: any) => setTours(d));
@@ -889,14 +894,9 @@ export default function SiteBuilderPage() {
     if (pages.length === 0) return;
     if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = window.setTimeout(() => {
-      window.localStorage.setItem(localDraftKey, JSON.stringify({ pages, theme, siteSlug, version: 2 }));
+      safeSetLocalStorage(localDraftKey, JSON.stringify({ pages, theme, siteSlug, version: 2 }), localHistoryKey);
     }, 700);
-  }, [pages, theme, siteSlug, localDraftKey]);
-
-  // Сохраняет историю в браузере:
-  useEffect(() => {
-    window.localStorage.setItem(localHistoryKey, JSON.stringify({ history, historyIndex }));
-  }, [history, historyIndex, localHistoryKey]);
+  }, [pages, theme, siteSlug, localDraftKey, localHistoryKey]);
 
   // Сохраняет снимок состояния для undo/redo:
   useEffect(() => {
@@ -911,9 +911,9 @@ export default function SiteBuilderPage() {
       setHistory((current) => {
         if (current[historyIndex] === snapshot) return current;
         const base = historyIndex >= 0 ? current.slice(0, historyIndex + 1) : current;
-        return [...base, snapshot].slice(-50);
+        return [...base, snapshot].slice(-20);
       });
-      setHistoryIndex((index) => Math.min(index + 1, 49));
+      setHistoryIndex((index) => Math.min(index + 1, 19));
     }, 350);
   }, [pages, theme, site]);
 

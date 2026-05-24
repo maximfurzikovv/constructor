@@ -558,16 +558,6 @@ export default function ExcursionPlayerPage() {
               >
                 {geoEnabled ? 'Отключить геолокацию' : 'Включить геолокацию'}
               </Button>
-              {geoEnabled && userPosition && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setFollowing(true)}
-                  style={{ width: '100%', marginTop: 8 }}
-                >
-                  Центрировать по мне
-                </Button>
-              )}
             </div>
 
             <div className="sheet-stops-list">
