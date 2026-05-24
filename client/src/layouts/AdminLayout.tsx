@@ -5,15 +5,15 @@ import './AdminLayout.css';
 // Пункты бокового меню:
 const navItems = [
   // Переход на дашборд:
-  { to: '/admin', icon: '\u{1f4ca}', label: 'Дашборд', end: true },
+  { to: '/admin', label: 'Дашборд', end: true },
   // Переход к экскурсиям:
-  { to: '/admin/excursions', icon: '\u{1f5fa}\ufe0f', label: 'Экскурсии' },
+  { to: '/admin/excursions', label: 'Экскурсии' },
   // Переход к медиатеке:
-  { to: '/admin/media', icon: '\u{1f5bc}\ufe0f', label: 'Медиатека' },
+  { to: '/admin/media', label: 'Медиатека' },
   // Переход к конструктору сайта:
-  { to: '/admin/showcase', icon: '\u{1f310}', label: 'Конструктор' },
+  { to: '/admin/showcase', label: 'Конструктор' },
   // Переход к публикациям:
-  { to: '/admin/publications', icon: '\u{1f4e3}', label: 'Публикации' },
+  { to: '/admin/publications', label: 'Публикации' },
 ];
 
 // Общий layout:
@@ -21,7 +21,7 @@ export default function AdminLayout() {
   // navigate:
   const navigate = useNavigate();
   // Состояние панели:
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => !window.location.pathname.startsWith('/admin/showcase'));
 
   // Выход пользователя:
   const handleLogout = () => {
@@ -59,9 +59,10 @@ export default function AdminLayout() {
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  if (item.to === '/admin/showcase') setSidebarOpen(false); // Освобождаем место для конструктора
+                }}
               >
-                {/* Иконка пункта меню: */}
-                <span className="nav-icon">{item.icon}</span>
                 {/* Текст пункта меню: */}
                 {item.label}
               </NavLink>

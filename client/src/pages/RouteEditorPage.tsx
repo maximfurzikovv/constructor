@@ -753,7 +753,7 @@ export default function RouteEditorPage() {
                           disabled={attached || locked}
                         >
                           <span className="media-picker-preview">
-                            {media.type === 'image' ? <img src={`${SERVER_URL}${media.url}`} alt={media.title} /> : media.type === 'audio' ? '🎵' : '🎬'}
+                            {media.type === 'image' ? <img src={`${SERVER_URL}${media.url}`} alt={media.title} /> : media.type === 'audio' ? '♪' : '▶'}
                           </span>
                           <span>
                             <strong>{media.title}</strong>

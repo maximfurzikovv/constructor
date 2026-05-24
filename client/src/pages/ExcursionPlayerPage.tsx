@@ -122,7 +122,7 @@ function AudioTrack({
   return (
     <div className="audio-card">
       <div className="audio-card-head">
-        <span className="audio-card-icon">🎵</span>
+        <span className="audio-card-icon">♪</span>
         <div>
           <strong>{audioTitle(media, index)}</strong>
           <small>{index + 1} из {total}</small>

@@ -153,24 +153,24 @@ const sectionLayouts: Record<SectionLayout, { label: string; widths: number[] }>
 
 // Подписи и значки элементов в панели:
 const elementLabels: Record<ElementType, { label: string; icon: string }> = {
-  heading: { label: 'Заголовок', icon: 'H' },
-  text: { label: 'Текст', icon: 'T' },
-  button: { label: 'Кнопка', icon: '▶' },
-  backButton: { label: 'Назад', icon: '←' },
+  heading: { label: 'Заголовок', icon: '🔠' },
+  text: { label: 'Текст', icon: '📝' },
+  button: { label: 'Кнопка', icon: '🔘' },
+  backButton: { label: 'Назад', icon: '↩️' },
   image: { label: 'Изображение', icon: '🖼️' },
-  gallery: { label: 'Галерея', icon: '▦' },
-  video: { label: 'Видео', icon: '▶' },
-  divider: { label: 'Линия', icon: '─' },
-  spacer: { label: 'Отступ', icon: '↕' },
-  box: { label: 'Бокс', icon: '▤' },
-  list: { label: 'Список', icon: '☰' },
-  social: { label: 'Соцсети', icon: '#' },
+  gallery: { label: 'Галерея', icon: '🖼️' },
+  video: { label: 'Видео', icon: '🎬' },
+  divider: { label: 'Линия', icon: '➖' },
+  spacer: { label: 'Отступ', icon: '↕️' },
+  box: { label: 'Бокс', icon: '⬜' },
+  list: { label: 'Список', icon: '📋' },
+  social: { label: 'Соцсети', icon: '#️⃣' },
   menu: { label: 'Меню/якорь', icon: '☰' },
-  form: { label: 'Форма', icon: '✎' },
-  map: { label: 'Карта', icon: '⌖' },
-  embed: { label: 'Код', icon: '</>' },
-  tours: { label: 'Экскурсии', icon: '◆' },
-  contacts: { label: 'Контакты', icon: '@' },
+  form: { label: 'Форма', icon: '✍️' },
+  map: { label: 'Карта', icon: '🗺️' },
+  embed: { label: 'Код', icon: '💻' },
+  tours: { label: 'Экскурсии', icon: '🧭' },
+  contacts: { label: 'Контакты', icon: '📨' },
 };
 
 // Группировка элементов в каталоге:
@@ -453,12 +453,50 @@ const LOCAL_HISTORY_KEY = 'site-builder-local-history';
 
 // Читает файл как data URL для фоновых изображений:
 function fileToDataUrl(file: File): Promise<string> {
+  // Сжимаем крупные изображения перед сохранением в JSON:
+  if (file.type.startsWith('image/') && file.type !== 'image/gif' && file.size > 350_000) {
+    return compressImageToDataUrl(file);
+  }
+
+  return readFileAsDataUrl(file);
+}
+
+// Читает файл без обработки:
+function readFileAsDataUrl(file: File | Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+// Сжимает изображение через canvas:
+async function compressImageToDataUrl(file: File): Promise<string> {
+  try {
+    const bitmap = await createImageBitmap(file); // Исходное изображение
+    const maxSide = 1600; // Максимальная сторона
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height)); // Коэффициент сжатия
+    const width = Math.max(1, Math.round(bitmap.width * scale)); // Новая ширина
+    const height = Math.max(1, Math.round(bitmap.height * scale)); // Новая высота
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext('2d'); // Контекст рисования
+    if (!context) return readFileAsDataUrl(file);
+
+    context.drawImage(bitmap, 0, 0, width, height); // Уменьшенное изображение
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.78); // JPEG с умеренным качеством
+    });
+
+    return blob ? readFileAsDataUrl(blob) : readFileAsDataUrl(file);
+  } catch {
+    return readFileAsDataUrl(file); // Если браузер не смог сжать файл
+  }
 }
 
 // Создает элемент конструктора с начальными данными:
@@ -1305,12 +1343,10 @@ export default function SiteBuilderPage() {
           ))}
           <div className="constructor-rail-actions">
             <button className="rail-save-action" type="button" onClick={handleSave} disabled={saving} title="Сохранить черновик">
-              <span className="rail-action-icon">{'\u2705'}</span>
               <span>{saving ? 'Сохранение' : 'Сохранить'}</span>
             </button>
             <button className="rail-publish-action" type="button" onClick={handlePublish} disabled={publishing} title="Опубликовать сайт">
-              <span className="rail-action-icon">{'\u{1f680}'}</span>
-              <span>{publishing ? 'Публикация' : 'Выложить'}</span>
+              <span>{publishing ? 'Публикация' : 'Опубликовать'}</span>
             </button>
           </div>
         </div>
@@ -1471,6 +1507,15 @@ export default function SiteBuilderPage() {
             >
               Без рамок
             </button>
+            <a
+              className="published-site-link"
+              href={`/s/${siteSlug || site?.slug || 'maxim-furzikov'}`}
+              target="_blank"
+              rel="noreferrer"
+              title="Открыть опубликованный сайт"
+            >
+              Перейти на сайт
+            </a>
             <button
               className="workspace-panel-btn"
               type="button"

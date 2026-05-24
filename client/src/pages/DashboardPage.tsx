@@ -41,19 +41,19 @@ export default function DashboardPage() {
   const actionItems = [
     {
       title: 'Опубликовать готовые экскурсии',
-      text: analytics.drafts.length ? `${analytics.drafts.length} экскурсии ждут проверки перед публикацией` : 'Все готовые экскурсии уже опубликованы',
+      text: analytics.drafts.length ? `${analytics.drafts.length} экскурсии(-я) ждут проверки перед публикацией` : 'Все готовые экскурсии уже опубликованы',
       link: '/admin/excursions',
       tone: analytics.drafts.length ? 'warn' : 'ok',
     },
     {
       title: 'Заполнить маршруты',
-      text: analytics.withoutPoints.length ? `${analytics.withoutPoints.length} маршрута пока без точек интереса` : 'У всех маршрутов есть точки интереса',
+      text: analytics.withoutPoints.length ? `${analytics.withoutPoints.length} маршрута(-ов) без точек интереса` : 'У всех маршрутов есть точки интереса',
       link: '/admin/excursions',
       tone: analytics.withoutPoints.length ? 'warn' : 'ok',
     },
     {
       title: 'Добавить обложки',
-      text: analytics.withoutCover.length ? `${analytics.withoutCover.length} экскурсии без обложки` : 'У экскурсий заполнены обложки',
+      text: analytics.withoutCover.length ? `${analytics.withoutCover.length} экскурсии без обложки` : 'У экскурсий добавлены обложки',
       link: '/admin/excursions',
       tone: analytics.withoutCover.length ? 'warn' : 'ok',
     },
@@ -72,9 +72,9 @@ export default function DashboardPage() {
     <div className="dashboard">
       <div className="dashboard-hero">
         <div>
-          <span className="dash-eyebrow">Личный кабинет автора</span>
+          <span className="dash-eyebrow">Личный кабинет</span>
           <h1>Рабочая область</h1>
-          <p>Здесь можно быстро перейти к созданию экскурсий, наполнению медиатеки, настройке сайта и публикации готовых материалов.</p>
+          <p>Здесь можно быстро перейти к созданию экскурсий, наполнению медиатеки, настройке сайта и публикации готовых материалов</p>
         </div>
         <div className="hero-summary">
           <strong>{analytics.readyPercent}%</strong>
@@ -101,7 +101,7 @@ export default function DashboardPage() {
           <div className="card-title-row">
             <div>
               <h2>Что подготовить</h2>
-              <p>Список показывает, какие материалы лучше заполнить перед показом экскурсии посетителям.</p>
+              <p>Какие материалы лучше заполнить перед показом экскурсии посетителям</p>
             </div>
           </div>
           <div className="todo-list">
@@ -121,7 +121,7 @@ export default function DashboardPage() {
           <div className="card-title-row">
             <div>
               <h2>Последние экскурсии</h2>
-              <p>Быстрый переход к маршрутам, которые недавно редактировались.</p>
+              <p>Быстрый переход к маршрутам, которые недавно редактировались</p>
             </div>
             <Link to="/admin/excursions">Все</Link>
           </div>
@@ -139,7 +139,7 @@ export default function DashboardPage() {
               </div>
             )) : (
               <div className="dashboard-empty">
-                <p>Экскурсии пока не созданы.</p>
+                <p>Экскурсии пока не созданы</p>
                 <Link className="dash-secondary-link" to="/admin/excursions">Создать первую экскурсию</Link>
               </div>
             )}

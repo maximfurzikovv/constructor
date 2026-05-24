@@ -141,11 +141,11 @@ export default function MediaLibraryPage() {
             )}
             {/* Заглушка аудио: */}
             {item.type === 'audio' && (
-              <div className="media-thumb media-audio">🎵</div>
+              <div className="media-thumb media-audio">♪</div>
             )}
             {/* Заглушка видео: */}
             {item.type === 'video' && (
-              <div className="media-thumb media-video">🎬</div>
+              <div className="media-thumb media-video">▶</div>
             )}
             {/* Информация о файле: */}
             <div className="media-info">

@@ -9,6 +9,54 @@ export interface ConstructorPayload {
   version?: number;
 }
 
+// Максимальная сторона изображения при загрузке:
+const MAX_UPLOAD_IMAGE_SIDE = 1600;
+
+// Минимальный размер файла для сжатия:
+const MIN_COMPRESS_IMAGE_SIZE = 350_000;
+
+// Проверяет, надо ли сжимать изображение:
+function shouldCompressImage(file: File) {
+  return file.type.startsWith('image/') && file.type !== 'image/gif' && file.size > MIN_COMPRESS_IMAGE_SIZE;
+}
+
+// Создает Blob из canvas:
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    canvas.toBlob(resolve, 'image/jpeg', 0.78); // Сжатый JPEG
+  });
+}
+
+// Сжимает изображение перед отправкой:
+async function compressImageForUpload(file: File): Promise<File> {
+  if (!shouldCompressImage(file)) return file; // Маленькие файлы не трогаем
+
+  try {
+    const bitmap = await createImageBitmap(file); // Исходная картинка
+    const scale = Math.min(1, MAX_UPLOAD_IMAGE_SIDE / Math.max(bitmap.width, bitmap.height)); // Масштаб
+    const width = Math.max(1, Math.round(bitmap.width * scale)); // Новая ширина
+    const height = Math.max(1, Math.round(bitmap.height * scale)); // Новая высота
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext('2d'); // Контекст canvas
+    if (!context) return file;
+
+    context.drawImage(bitmap, 0, 0, width, height); // Перерисовка с размером
+    bitmap.close();
+
+    const blob = await canvasToBlob(canvas); // Сжатый файл
+    if (!blob) return file;
+
+    const name = file.name.replace(/\.(png|jpe?g|webp)$/i, '.jpg'); // Имя JPEG
+    return new File([blob], name, { type: 'image/jpeg', lastModified: file.lastModified });
+  } catch {
+    return file; // Если сжатие недоступно
+  }
+}
+
 // Общая функция для JSON-запросов к API:
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('token');  // Токен из localStorage
@@ -97,8 +145,9 @@ export const api = {
     request(`/media${excursionId ? `?excursionId=${excursionId}` : ''}`),
   // Загрузка файла на сервер:
   uploadMedia: async (file: File, excursionId?: string, pointId?: string) => {
+    const uploadFile = await compressImageForUpload(file); // Файл после возможного сжатия
     const formData = new FormData();
-    formData.append('file', file); //  Сам файл
+    formData.append('file', uploadFile); // Сам файл
     // Привязываем файл к экскурсии:
     if (excursionId) formData.append('excursionId', excursionId);
     // Привязываем файл к точке, если id передан:
