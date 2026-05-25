@@ -37,8 +37,15 @@ async function getCurrentSite(request: APIRequestContext): Promise<TestConstruct
   expect(response.ok()).toBeTruthy();
   // Читаем JSON:
   const body = await response.json();
+  // Если сайт еще не редактировали, восстанавливаем корректную пустую структуру:
+  if (!body.data || !Array.isArray(body.data.pages)) {
+    return {
+      ...fallbackConstructor(),
+      siteSlug: body.data?.siteSlug || 'maxim-furzikov',
+    };
+  }
   // Возвращаем текущую структуру:
-  return body.data || fallbackConstructor();
+  return body.data;
 }
 
 // Восстанавливает конструктор:
