@@ -75,7 +75,6 @@ async function publishTestSite(request: APIRequestContext, slug: string) {
       siteSlug: slug,
       theme: {
         primaryColor: '#2563eb',
-        customCss: '.sc-el-heading { color: #0f172a; }',
       },
       pages: [
         {
@@ -100,6 +99,18 @@ async function publishTestSite(request: APIRequestContext, slug: string) {
             },
           ],
         },
+        {
+          id: 'page-contacts',
+          title: 'Контакты',
+          slug: 'contacts',
+          sections: [{
+            id: 'section-contacts',
+            columns: [{
+              id: 'column-contacts',
+              elements: [{ id: 'heading-contacts', type: 'heading', data: { text: 'E2E contacts page', level: 'h2' }, style: {} }],
+            }],
+          }],
+        },
       ],
     },
   });
@@ -121,6 +132,10 @@ test('site builder: published site opens by custom slug', async ({ page, request
     await page.goto(`/s/${slug}`);
     // Проверяем контент:
     await expect(page.getByText('E2E public page')).toBeVisible();
+    // Открываем вторую страницу по внутреннему slug:
+    await page.getByRole('button', { name: 'Контакты' }).click();
+    await expect(page).toHaveURL(new RegExp(`/s/${slug}/contacts$`));
+    await expect(page.getByText('E2E contacts page')).toBeVisible();
     // Проверяем отсутствие горизонтального скролла:
     await expectNoHorizontalOverflow(page);
   } finally {

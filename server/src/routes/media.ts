@@ -5,6 +5,7 @@ import fs from 'fs';
 import prisma from '../db';
 import { AuthRequest, requireAuth, requireRole } from '../authSecurity';
 import { removeStoredMedia, storeMediaFile } from '../objectStorage';
+import { ApiValidationError, mediaCreateSchema, mediaUpdateSchema, mediaUploadFieldsSchema, parseBody } from '../apiValidation';
 
 const router = Router();
 // Разрешенные типы медиафайлов:
@@ -91,13 +92,18 @@ router.post('/upload', requireAuth, requireRole('guide'), upload.single('file'),
   if (!isAllowedMime(req.file.mimetype)) return res.status(400).json({ error: 'Unsupported file type' });
   // Дополнительная проверка размера дублирует multer-limit:
   if (req.file.size > maxUploadSize) return res.status(400).json({ error: 'File is too large' });
-  // Каждый медиафайл должен быть привязан к экскурсии:
-  if (!req.body.excursionId) return res.status(400).json({ error: 'excursionId is required' });
+  let payload;
+  try {
+    payload = parseBody(mediaUploadFieldsSchema, req.body); // Поля формы загрузки
+  } catch (error) {
+    if (error instanceof ApiValidationError) return res.status(error.statusCode).json({ error: error.message });
+    return res.status(400).json({ error: 'Некорректные данные медиафайла' });
+  }
   // Экскурсия должна принадлежать текущему пользователю:
-  const excursion = await findOwnedExcursion(req.body.excursionId, req.user!.id);
+  const excursion = await findOwnedExcursion(payload.excursionId, req.user!.id);
   if (!excursion) return res.status(404).json({ error: 'Excursion not found' });
   // Точка должна входить в эту же экскурсию:
-  if (!(await isPointInsideExcursion(req.body.pointId, excursion.id))) {
+  if (!(await isPointInsideExcursion(payload.pointId, excursion.id))) {
     return res.status(400).json({ error: 'Point does not belong to excursion' });
   }
 
@@ -110,13 +116,13 @@ router.post('/upload', requireAuth, requireRole('guide'), upload.single('file'),
     // В PostgreSQL сохраняются ссылка и метаданные медиа:
     const item = await prisma.media.create({
       data: {
-        excursionId: req.body.excursionId,
-        pointId: req.body.pointId || null,
+        excursionId: payload.excursionId,
+        pointId: payload.pointId || null,
         type,
         url: stored.url,
         storageKey: stored.storageKey,
-        title: req.body.title || req.file.originalname,
-        description: req.body.description || null,
+        title: payload.title || req.file.originalname,
+        description: payload.description || null,
       },
     });
     // 201 означает, что файл создан:
@@ -129,25 +135,32 @@ router.post('/upload', requireAuth, requireRole('guide'), upload.single('file'),
 
 // Создает медиа-запись без загрузки файла, например по готовому URL:
 router.post('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
+  let payload;
+  try {
+    payload = parseBody(mediaCreateSchema, req.body); // Проверенная ссылка медиа
+  } catch (error) {
+    if (error instanceof ApiValidationError) return res.status(error.statusCode).json({ error: error.message });
+    return res.status(400).json({ error: 'Некорректные данные медиафайла' });
+  }
   // Медиа без файла тоже должно относиться к своей экскурсии:
-  const excursion = await findOwnedExcursion(req.body.excursionId, req.user!.id);
+  const excursion = await findOwnedExcursion(payload.excursionId, req.user!.id);
   if (!excursion) return res.status(404).json({ error: 'Excursion not found' });
-  if (!(await isPointInsideExcursion(req.body.pointId, excursion.id))) {
+  if (!(await isPointInsideExcursion(payload.pointId, excursion.id))) {
     return res.status(400).json({ error: 'Point does not belong to excursion' });
   }
   // В production нельзя обходить Cloudinary вставкой Base64 через JSON:
-  if (process.env.NODE_ENV === 'production' && String(req.body.url || '').startsWith('data:')) {
+  if (process.env.NODE_ENV === 'production' && payload.url.startsWith('data:')) {
     return res.status(400).json({ error: 'Data URL media is not allowed' });
   }
   // Берем значения из тела запроса и задаем fallback:
   const item = await prisma.media.create({
     data: {
-      excursionId: req.body.excursionId,
-      pointId: req.body.pointId || null,
-      type: req.body.type || 'image',
-      url: req.body.url || '',
-      title: req.body.title || 'Untitled',
-      description: req.body.description,
+      excursionId: payload.excursionId,
+      pointId: payload.pointId || null,
+      type: payload.type,
+      url: payload.url,
+      title: payload.title || 'Untitled',
+      description: payload.description,
     },
   });
   // Возвращаем созданную запись:
@@ -157,26 +170,28 @@ router.post('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res
 // Обновляет подпись, описание или привязку медиа:
 router.put('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   try {
+    const payload = parseBody(mediaUpdateSchema, req.body); // Разрешенные изменения медиа
     const existing = await prisma.media.findFirst({
       where: { id: req.params.id, excursion: { authorId: req.user!.id } },
     });
     if (!existing) return res.status(404).json({ error: 'Media not found' });
-    if (!(await isPointInsideExcursion(req.body.pointId, existing.excursionId))) {
+    if (!(await isPointInsideExcursion(payload.pointId, existing.excursionId))) {
       return res.status(400).json({ error: 'Point does not belong to excursion' });
     }
     // Обновляем только редактируемые поля:
     const item = await prisma.media.update({
       where: { id: req.params.id },
       data: {
-        title: req.body.title,
-        description: req.body.description,
+        title: payload.title,
+        description: payload.description,
         // undefined означает не трогать поле, null означает отвязать от точки:
-        pointId: req.body.pointId === undefined ? undefined : req.body.pointId || null,
+        pointId: payload.pointId === undefined ? undefined : payload.pointId || null,
       },
     });
     // Отдаем обновленную запись:
     res.json({ data: item });
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiValidationError) return res.status(error.statusCode).json({ error: error.message });
     // Ошибка Prisma превращается в понятный ответ API:
     res.status(500).json({ error: 'Failed to update media' });
   }

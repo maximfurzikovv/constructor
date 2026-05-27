@@ -58,12 +58,13 @@ test('api validation: constructor rejects missing pages', async () => {
   assert.match(body.error, /страниц/i);
 });
 
-test('api validation: constructor sanitizes custom CSS and embed HTML', async () => {
+test('api validation: constructor removes unknown theme fields and sanitizes embed HTML', async () => {
   const testSlug = `security-test-${Date.now()}`;
   const payload = {
     siteSlug: testSlug,
     theme: {
-      customCss: '@import url(https://bad.test/style.css); .x { background: url(javascript:alert(1)); color: red; }',
+      primaryColor: '#2563eb',
+      unsupportedSetting: 'remove-me',
     },
     pages: [
       {
@@ -100,10 +101,9 @@ test('api validation: constructor sanitizes custom CSS and embed HTML', async ()
     assert.equal(result.slug, testSlug);
 
     const publicSite = await apiRequest(`/showcase/${testSlug}`);
-    const savedCss = publicSite.constructorData.theme.customCss;
+    const savedTheme = publicSite.constructorData.theme;
     const savedCode = publicSite.constructorData.pages[0].sections[0].columns[0].elements[0].data.code;
-    assert.equal(savedCss.includes('@import'), false);
-    assert.equal(/javascript\s*:/i.test(savedCss), false);
+    assert.equal(savedTheme.unsupportedSetting, undefined);
     assert.equal(/<script/i.test(savedCode), false);
     assert.equal(/onclick/i.test(savedCode), false);
   } finally {

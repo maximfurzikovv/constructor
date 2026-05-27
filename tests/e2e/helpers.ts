@@ -53,7 +53,7 @@ export async function createPublishedExcursion() {
   const pointsResponse = await api.put(`/api/points/route/${excursion.route.id}/sync`, {
     data: {
       points: [
-        { title: 'Start', description: 'First point', lat: 59.934, lng: 30.306, duration: 2, radius: 50 },
+        { title: 'Start', description: 'First point with a deliberately long description for checking the mobile full-text dialog. This content should be opened separately without stretching the route panel on a small screen.', lat: 59.934, lng: 30.306, duration: 2, radius: 50 },
         { title: 'Finish', description: 'Second point', lat: 59.936, lng: 30.31, duration: 2, radius: 50 },
       ],
     },

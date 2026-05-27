@@ -93,7 +93,6 @@ interface ThemeConfig {
   borderRadius: string;
   siteBg: string;
   siteBgImage: string;
-  customCss: string;
   headerStyle: 'light' | 'dark';
   headerBg: string;
   headerTextColor: string;
@@ -128,7 +127,6 @@ const defaultTheme: ThemeConfig = {
   borderRadius: '8',
   siteBg: '#ffffff',
   siteBgImage: '',
-  customCss: '',
   headerStyle: 'light',
   headerBg: '#ffffff',
   headerTextColor: '#0f172a',
@@ -284,72 +282,6 @@ function BuilderLeafletMap({ data, preview = false }: { data: Record<string, any
   );
 }
 
-// Таблица символов нужна для восстановления битых русских строк:
-const CP1251_CHARS =
-  '\u0402\u0403\u201a\u0453\u201e\u2026\u2020\u2021\u20ac\u2030\u0409\u2039\u040a\u040c\u040b\u040f' +
-  '\u0452\u2018\u2019\u201c\u201d\u2022\u2013\u2014\u0098\u2122\u0459\u203a\u045a\u045c\u045b\u045f' +
-  '\u00a0\u040e\u045e\u0408\u00a4\u0490\u00a6\u00a7\u0401\u00a9\u0404\u00ab\u00ac\u00ad\u00ae\u0407' +
-  '\u00b0\u00b1\u0406\u0456\u0491\u00b5\u00b6\u00b7\u0451\u2116\u0454\u00bb\u0458\u0405\u0455\u0457' +
-  '\u0410\u0411\u0412\u0413\u0414\u0415\u0416\u0417\u0418\u0419\u041a\u041b\u041c\u041d\u041e\u041f' +
-  '\u0420\u0421\u0422\u0423\u0424\u0425\u0426\u0427\u0428\u0429\u042a\u042b\u042c\u042d\u042e\u042f' +
-  '\u0430\u0431\u0432\u0433\u0434\u0435\u0436\u0437\u0438\u0439\u043a\u043b\u043c\u043d\u043e\u043f' +
-  '\u0440\u0441\u0442\u0443\u0444\u0445\u0446\u0447\u0448\u0449\u044a\u044b\u044c\u044d\u044e\u044f';
-
-// Проверяет, похожа ли строка на испорченную кодировку:
-function looksBrokenText(value: string) {
-  return /[\u00d0\u00d1\u0420]/.test(value) && /[\u00d0\u00d1\u0420][\u0080-\uFFFF]/.test(value);
-}
-
-// Оценивает, насколько строка похожа на нормальный русский текст:
-function scoreRussianText(value: string) {
-  const russian = (value.match(/[\u0401\u0451\u0410-\u044f]/g) || []).length;
-  const broken = (value.match(/[\u00d0\u00d1\u0420][\u0080-\uFFFF]?/g) || []).length;
-  return russian - broken * 2;
-}
-
-// Пробует декодировать набор байтов как UTF-8:
-function decodeBytesAsUtf8(bytes: number[]) {
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes));
-  } catch {
-    return '';
-  }
-}
-
-// Пытается восстановить испорченный текст:
-function repairMojibakeText(value: string) {
-  if (!looksBrokenText(value)) return value;
-  let current = value;
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const latin1Bytes = Array.from(current, (char) => char.charCodeAt(0) & 0xff);
-    const cp1251Bytes = Array.from(current, (char) => {
-      const code = char.charCodeAt(0);
-      if (code < 128) return code;
-      const index = CP1251_CHARS.indexOf(char);
-      return index >= 0 ? 0x80 + index : code & 0xff;
-    });
-    const variants = [decodeBytesAsUtf8(latin1Bytes), decodeBytesAsUtf8(cp1251Bytes)].filter(Boolean);
-    const best = variants.sort((a, b) => scoreRussianText(b) - scoreRussianText(a))[0];
-    if (!best || scoreRussianText(best) <= scoreRussianText(current)) break;
-    current = best;
-  }
-
-  return current;
-}
-
-// Исправляет видимый текст внутри DOM-узла:
-function repairVisibleMojibake(root: HTMLElement | null) {
-  if (!root) return;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const nodes: Text[] = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode as Text);
-  nodes.forEach((node) => {
-    const fixed = repairMojibakeText(node.nodeValue || '');
-    if (fixed !== node.nodeValue) node.nodeValue = fixed;
-  });
-}
-
 // Нормализует подписи и иконки интерфейса конструктора:
 function normalizeBuilderChrome(root: HTMLElement | null, activePage: BuilderPage, tab: BuilderTab, rightPanelOpen: boolean) {
   if (!root) return;
@@ -492,54 +424,6 @@ function safeSetLocalStorage(key: string, value: string, cleanupKey?: string) {
     } catch {
       console.warn('Черновик слишком большой для localStorage'); // Диагностика лимита браузера
     }
-  }
-}
-
-// Читает файл как data URL для фоновых изображений:
-function fileToDataUrl(file: File): Promise<string> {
-  // Сжимаем крупные изображения перед сохранением в JSON:
-  if (file.type.startsWith('image/') && file.type !== 'image/gif' && file.size > 350_000) {
-    return compressImageToDataUrl(file);
-  }
-
-  return readFileAsDataUrl(file);
-}
-
-// Читает файл без обработки:
-function readFileAsDataUrl(file: File | Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-// Сжимает изображение через canvas:
-async function compressImageToDataUrl(file: File): Promise<string> {
-  try {
-    const bitmap = await createImageBitmap(file); // Исходное изображение
-    const maxSide = 1600; // Максимальная сторона
-    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height)); // Коэффициент сжатия
-    const width = Math.max(1, Math.round(bitmap.width * scale)); // Новая ширина
-    const height = Math.max(1, Math.round(bitmap.height * scale)); // Новая высота
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-
-    const context = canvas.getContext('2d'); // Контекст рисования
-    if (!context) return readFileAsDataUrl(file);
-
-    context.drawImage(bitmap, 0, 0, width, height); // Уменьшенное изображение
-    bitmap.close();
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, 'image/jpeg', 0.78); // JPEG с умеренным качеством
-    });
-
-    return blob ? readFileAsDataUrl(blob) : readFileAsDataUrl(file);
-  } catch {
-    return readFileAsDataUrl(file); // Если браузер не смог сжать файл
   }
 }
 
@@ -751,7 +635,7 @@ function createSectionTemplate(template: string): BuilderSection {
       ];
       column.elements = [{
         ...createElement('box'),
-        data: { text: `в…в…в…в…в…\n${texts[index]}\n${names[index]}` },
+        data: { text: `Оценка: 5 из 5\n${texts[index]}\n${names[index]}` },
         style: { padding: 24, margin: 8, radius: 14, background: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0', shadow: '0 8px 24px rgba(15,23,42,0.12)', width: 100 },
       }];
     });
@@ -948,7 +832,7 @@ export default function SiteBuilderPage() {
     if (pages.length === 0) return;
     if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = window.setTimeout(() => {
-      safeSetLocalStorage(localDraftKey, JSON.stringify({ pages, theme, siteSlug, version: 2 }), localHistoryKey);
+      safeSetLocalStorage(localDraftKey, JSON.stringify({ pages, theme, siteSlug }), localHistoryKey);
     }, 700);
   }, [pages, theme, siteSlug, localDraftKey, localHistoryKey]);
 
@@ -1297,7 +1181,7 @@ export default function SiteBuilderPage() {
     setSelection({ type: 'element', sectionId: targetSection.id, columnId: targetColumn.id, elementId: copy.id });
   };
 
-  // Оереносит элемент в другую колонку или позицию:
+  // Переносит элемент в другую колонку или позицию:
   const dropElement = (targetSectionId: string, targetColumnId: string, targetElementId?: string) => {
     if (!draggedElement) return;
     updateActivePage((page) => {
@@ -1331,19 +1215,26 @@ export default function SiteBuilderPage() {
     setDraggedElement(null);
   };
 
-  // Открывает выбор одного изображения:
+  // Загружает одно изображение сайта во внешнее хранилище:
   const uploadSingleImage = async (callback: (url: string) => void) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
     input.onchange = async (event) => {
       const file = (event.target as HTMLInputElement).files?.[0];
-      if (file) callback(await fileToDataUrl(file));
+      if (!file) return;
+
+      try {
+        const url = await api.uploadSiteImage(file); // URL загруженного изображения
+        callback(url);
+      } catch (error: any) {
+        setStatusMsg(error.message || 'Ошибка загрузки изображения'); // Сообщение загрузки
+      }
     };
     input.click();
   };
 
-  // Загружает несколько изображений в галерею:
+  // Загружает изображения галереи во внешнее хранилище:
   const uploadGallery = async (element: BuilderElement) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -1351,21 +1242,25 @@ export default function SiteBuilderPage() {
     input.multiple = true;
     input.onchange = async (event) => {
       const files = (event.target as HTMLInputElement).files;
-      if (!files) return;
-      const urls = await Promise.all(Array.from(files).map(fileToDataUrl));
-      updateElementData(element.id, 'images', [...(element.data.images || []), ...urls]);
+      if (!files?.length) return;
+
+      try {
+        const urls = await Promise.all(Array.from(files).map((file) => api.uploadSiteImage(file))); // URL изображений
+        updateElementData(element.id, 'images', [...(element.data.images || []), ...urls]);
+      } catch (error: any) {
+        setStatusMsg(error.message || 'Ошибка загрузки изображений'); // Сообщение загрузки
+      }
     };
     input.click();
   };
 
   // Общие данные для сохранения и публикации:
-  const savePayload = { pages, theme: { ...theme, customCss: '' }, siteSlug, version: 2 };
+  const savePayload = { pages, theme, siteSlug };
 
-  // После рендера чинит подписи интерфейса конструктора:
+  // После рендера обновляет подписи интерфейса конструктора:
   useEffect(() => {
     if (!activePage) return;
     const root = document.querySelector<HTMLElement>('.constructor-layout');
-    repairVisibleMojibake(root);
     normalizeBuilderChrome(root, activePage, tab, rightPanelOpen);
   }, [activePage, tab, rightPanelOpen, leftPanelOpen, pages]);
 
@@ -1708,7 +1603,7 @@ export default function SiteBuilderPage() {
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => { event.stopPropagation(); dropElement(section.id, column.id); }}
                   >
-                    {column.elements.length === 0 && <div className="column-empty">Оеретащите или добавьте элемент</div>}
+                    {column.elements.length === 0 && <div className="column-empty">Перетащите или добавьте элемент</div>}
                     {column.elements.map((element) => (
                       <div
                         key={element.id}

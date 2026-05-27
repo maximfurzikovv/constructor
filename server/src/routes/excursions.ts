@@ -3,6 +3,7 @@ import prisma from '../db';
 import { AuthRequest, getOptionalAuthUser, requireAuth, requireRole } from '../authSecurity';
 import { calculateRouteMetrics, calculateWalkingRouteMetrics } from '../routeMetrics';
 import { removeStoredMedia } from '../objectStorage';
+import { ApiValidationError, excursionCreateSchema, excursionUpdateSchema, parseBody } from '../apiValidation';
 // Маршрутизатор:
 const router = Router(); // API-маршруты
 
@@ -149,16 +150,23 @@ router.get('/:id', async (req, res) => {
 router.post('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Новая экскурсия привязывается к текущему пользователю:
   const userId = req.user!.id;
+  let payload;
+  try {
+    payload = parseBody(excursionCreateSchema, req.body); // Проверенные поля экскурсии
+  } catch (error) {
+    if (error instanceof ApiValidationError) return res.status(error.statusCode).json({ error: error.message });
+    return res.status(400).json({ error: 'Некорректные данные экскурсии' });
+  }
   // Создаем экскурсию и сразу создаем пустой маршрут:
   const excursion = await prisma.excursion.create({
     data: {
-      title: req.body.title || 'Новая экскурсия',
-      description: req.body.description || '',
+      title: payload.title || 'Новая экскурсия',
+      description: payload.description || '',
       authorId: userId,
-      city: req.body.city || '',
+      city: payload.city || '',
       route: {
         create: {
-          transport: req.body.transport || 'walk',
+          transport: payload.transport || 'walk',
         },
       },
     },
@@ -195,8 +203,15 @@ router.post('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res
 router.put('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Обновлять можно только свои экскурсии:
   const userId = req.user!.id;
-  // Отделяем route от основных полей экскурсии:
-  const { route, createdAt, updatedAt, ...excursionData } = req.body;
+  let payload;
+  try {
+    payload = parseBody(excursionUpdateSchema, req.body); // Разрешенные поля формы
+  } catch (error) {
+    if (error instanceof ApiValidationError) return res.status(error.statusCode).json({ error: error.message });
+    return res.status(400).json({ error: 'Некорректные данные экскурсии' });
+  }
+  // Отделяем route от разрешенных полей экскурсии:
+  const { route, ...excursionData } = payload;
   try {
     const existing = await prisma.excursion.findFirst({
       where: { id: req.params.id, authorId: userId },
@@ -213,7 +228,7 @@ router.put('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, r
 
     // Если клиент прислал route, обновляем только выбранный вид передвижения:
     if (route && excursion.route) {
-      const routeUpdate: any = {};
+      const routeUpdate: { transport?: string } = {};
       if (route.transport !== undefined) routeUpdate.transport = route.transport;
 
       // Геометрия и показатели меняются только при синхронизации точек:

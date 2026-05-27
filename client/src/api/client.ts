@@ -6,7 +6,6 @@ export interface ConstructorPayload {
   pages: unknown[];
   theme: unknown;
   siteSlug: string;
-  version?: number;
 }
 
 // Максимальная сторона изображения при загрузке:
@@ -173,6 +172,26 @@ export const api = {
 
   // Получение публичного сайта по slug:
   getShowcase: (slug: string) => request(`/showcase/${slug}`),
+  // Загрузка изображения конструктора на сервер:
+  uploadSiteImage: async (file: File) => {
+    const uploadFile = await compressImageForUpload(file); // Файл после возможного сжатия
+    const formData = new FormData();
+    formData.append('file', uploadFile); // Изображение сайта
+
+    const res = await fetch(`${BASE_URL}/showcase/constructor/asset/upload`, {
+      method: 'POST',
+      credentials: 'include', // Отправляем HttpOnly cookie
+      body: formData,
+    }); // Запрос загрузки
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Ошибка загрузки изображения' })); // Ответ ошибки
+      throw new Error(err.error || 'Ошибка загрузки изображения');
+    }
+
+    const json = await res.json();
+    return json.data.url as string; // URL во внешнем хранилище
+  },
   // Публикация конструктора сайта:
   saveConstructor: (data: ConstructorPayload) =>
     request('/showcase/constructor', { method: 'PUT', body: JSON.stringify(data) }),

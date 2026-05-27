@@ -264,4 +264,78 @@ describe('data ownership and integrity API', () => {
     assert.equal(save.response.status, 409);
     assert.equal(save.body.error, 'Этот адрес сайта уже занят');
   });
+
+  it('rejects unexpected fields and invalid route or media values', async () => {
+    // Создаем экскурсию для проверок схем:
+    const { excursion } = await createExcursionWithPoint();
+
+    try {
+      // Служебное поле нельзя записать через форму:
+      const foreignField = await apiRequestRaw(`/excursions/${excursion.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ authorId: 'forged-author' }),
+      });
+      assert.equal(foreignField.response.status, 400);
+
+      // Координаты вне диапазона не должны попадать в маршрут:
+      const badPoint = await apiRequestRaw(`/points/route/${excursion.route.id}/sync`, {
+        method: 'PUT',
+        body: JSON.stringify({ points: [{ title: 'Bad point', lat: 123, lng: 30, duration: 5, radius: 50 }] }),
+      });
+      assert.equal(badPoint.response.status, 400);
+
+      // Тип медиа ограничен поддерживаемыми форматами:
+      const badMedia = await apiRequestRaw('/media', {
+        method: 'POST',
+        body: JSON.stringify({
+          excursionId: excursion.id,
+          type: 'video',
+          url: 'https://example.com/video.mp4',
+          title: 'Unsupported media',
+        }),
+      });
+      assert.equal(badMedia.response.status, 400);
+    } finally {
+      // Удаляем временную экскурсию:
+      await apiRequest(`/excursions/${excursion.id}`, { method: 'DELETE' });
+    }
+  });
+
+  it('keeps public sites of two registered authors separated', async () => {
+    // Регистрируем двух авторов:
+    const first = await registerGuide('site-first');
+    const second = await registerGuide('site-second');
+    const firstSlug = `first-site-${Date.now()}`;
+    const secondSlug = `second-site-${Date.now()}`;
+
+    // Формирует страницу с отличимым заголовком:
+    const sitePayload = (slug, heading) => ({
+      siteSlug: slug,
+      theme: {},
+      pages: [{
+        id: 'page-main',
+        title: 'Главная',
+        slug: '',
+        sections: [{ id: 's', columns: [{ id: 'c', elements: [{ id: 'h', type: 'heading', data: { text: heading }, style: {} }] }] }],
+      }],
+    });
+
+    // Каждый автор публикует собственный сайт:
+    const firstPublish = await requestAs(first.token, '/showcase/constructor', {
+      method: 'PUT',
+      body: JSON.stringify(sitePayload(firstSlug, 'Первый автор')),
+    });
+    const secondPublish = await requestAs(second.token, '/showcase/constructor', {
+      method: 'PUT',
+      body: JSON.stringify(sitePayload(secondSlug, 'Второй автор')),
+    });
+    assert.equal(firstPublish.response.status, 200);
+    assert.equal(secondPublish.response.status, 200);
+
+    // Публичные страницы не должны обмениваться данными:
+    const firstSite = await requestAs(first.token, `/showcase/${firstSlug}`);
+    const secondSite = await requestAs(second.token, `/showcase/${secondSlug}`);
+    assert.equal(firstSite.body.data.constructorData.pages[0].sections[0].columns[0].elements[0].data.text, 'Первый автор');
+    assert.equal(secondSite.body.data.constructorData.pages[0].sections[0].columns[0].elements[0].data.text, 'Второй автор');
+  });
 });

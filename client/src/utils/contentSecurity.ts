@@ -1,23 +1,3 @@
-// Убирает опасные CSS-конструкции:
-export function sanitizeCustomCss(css: string) {
-  // Если CSS не строка, возвращаем пусто:
-  if (typeof css !== 'string') return '';
-  // Ограничиваем размер CSS:
-  const trimmed = css.slice(0, 12000);
-  // Удаляем импорт внешних стилей:
-  const withoutImports = trimmed.replace(/@import[^;]+;/gi, '');
-  // Удаляем старые опасные выражения:
-  const withoutExpressions = withoutImports.replace(/expression\s*\([^)]*\)/gi, '');
-  // Удаляем javascript-ссылки:
-  const withoutJavascript = withoutExpressions.replace(/javascript\s*:/gi, '');
-  // Удаляем html-data ссылки:
-  const withoutHtmlData = withoutJavascript.replace(/data\s*:\s*text\/html/gi, '');
-  // Удаляем старые браузерные биндинги:
-  const withoutBindings = withoutHtmlData.replace(/-moz-binding\s*:[^;]+;/gi, '');
-  // Удаляем старое IE-поведение:
-  return withoutBindings.replace(/behavior\s*:[^;]+;/gi, '');
-}
-
 // Проверяет безопасный адрес:
 function isSafeUrl(value: string) {
   // Пустой адрес безопасен:
@@ -48,7 +28,7 @@ export function sanitizeEmbedHtml(html: string) {
   // Разрешенные теги:
   const allowedTags = new Set(['A', 'B', 'BR', 'DIV', 'EM', 'IFRAME', 'IMG', 'LI', 'OL', 'P', 'SPAN', 'STRONG', 'UL']);
   // Разрешенные атрибуты:
-  const allowedAttrs = new Set(['alt', 'class', 'height', 'href', 'loading', 'rel', 'src', 'style', 'target', 'title', 'width']);
+  const allowedAttrs = new Set(['alt', 'class', 'height', 'href', 'loading', 'rel', 'src', 'target', 'title', 'width']);
 
   // Чистим каждый узел:
   doc.body.querySelectorAll('*').forEach((node) => {
@@ -66,8 +46,6 @@ export function sanitizeEmbedHtml(html: string) {
       if (name.startsWith('on')) node.removeAttribute(attr.name);
       // Удаляем запрещенные атрибуты:
       else if (!allowedAttrs.has(name)) node.removeAttribute(attr.name);
-      // Чистим inline-style:
-      else if (name === 'style') node.setAttribute(attr.name, sanitizeCustomCss(value));
       // Проверяем ссылки:
       else if ((name === 'href' || name === 'src') && !isSafeUrl(value)) node.removeAttribute(attr.name);
     });

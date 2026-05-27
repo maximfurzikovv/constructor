@@ -29,7 +29,7 @@ export default function LandingPage() {
         </article>
         <article>
           <strong>Медиа</strong>
-          <span>Изображения, аудио и видео для сопровождения каждой точки</span>
+          <span>Изображения и аудио для сопровождения каждой точки</span>
         </article>
         <article>
           <strong>Публикация</strong>

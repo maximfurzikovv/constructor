@@ -13,11 +13,14 @@
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
+    "@types/sanitize-html": "^2.16.1",
     "cloudinary": "^2.10.0",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "multer": "^2.1.1",
-    "shared": "*"
+    "sanitize-html": "^2.17.4",
+    "shared": "*",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

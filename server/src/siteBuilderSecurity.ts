@@ -1,9 +1,10 @@
+import sanitizeHtml from 'sanitize-html';
+
 // Данные конструктора после проверки:
 export interface SafeConstructorPayload {
   pages: unknown[];
   theme: Record<string, unknown>;
   siteSlug: string;
-  version?: number;
 }
 
 // Ошибка валидации конструктора:
@@ -39,36 +40,70 @@ function safeString(value: unknown, max = 1000) {
   return value.slice(0, max);
 }
 
-// Чистит пользовательский CSS:
-export function sanitizeCustomCss(css: unknown) {
-  // Берем только строку:
-  const source = safeString(css, 12000);
-  // Удаляем внешние импорты:
-  const withoutImports = source.replace(/@import[^;]+;/gi, '');
-  // Удаляем expression:
-  const withoutExpressions = withoutImports.replace(/expression\s*\([^)]*\)/gi, '');
-  // Удаляем javascript-схемы:
-  const withoutJavascript = withoutExpressions.replace(/javascript\s*:/gi, '');
-  // Удаляем html-data:
-  const withoutHtmlData = withoutJavascript.replace(/data\s*:\s*text\/html/gi, '');
-  // Удаляем старые биндинги:
-  const withoutBindings = withoutHtmlData.replace(/-moz-binding\s*:[^;]+;/gi, '');
-  // Удаляем IE behavior:
-  return withoutBindings.replace(/behavior\s*:[^;]+;/gi, '');
+// Проверяет ссылку изображения конструктора:
+function safeSiteImageUrl(value: unknown) {
+  const maxLength = process.env.NODE_ENV === 'production' ? 2048 : 3_000_000; // Лимит адреса
+  const url = safeString(value, maxLength); // Значение изображения
+  if (!url) return '';
+  if (url.startsWith('https://') || url.startsWith('/uploads/')) return url; // Внешняя ссылка
+  if (process.env.NODE_ENV !== 'production' && url.startsWith('data:image/')) return url; // Fallback для тестов
+  return '';
+}
+
+// Оставляет только доступные настройки темы:
+function sanitizeTheme(value: unknown) {
+  const theme = isRecord(value) ? value : {}; // Входная тема
+
+  return {
+    primaryColor: safeString(theme.primaryColor, 30),
+    fontFamily: safeString(theme.fontFamily, 40),
+    borderRadius: safeString(theme.borderRadius, 10),
+    siteBg: safeString(theme.siteBg, 30),
+    siteBgImage: safeSiteImageUrl(theme.siteBgImage),
+    headerStyle: safeString(theme.headerStyle, 20),
+    headerBg: safeString(theme.headerBg, 30),
+    headerTextColor: safeString(theme.headerTextColor, 30),
+    headerNavAlign: safeString(theme.headerNavAlign, 20),
+    headerNavStyle: safeString(theme.headerNavStyle, 20),
+    headerNavVisible: typeof theme.headerNavVisible === 'boolean' ? theme.headerNavVisible : true,
+    headerNavGap: safeString(theme.headerNavGap, 10),
+    logoType: safeString(theme.logoType, 20),
+    logoText: safeString(theme.logoText, 120),
+    logoImage: safeSiteImageUrl(theme.logoImage),
+    favicon: safeSiteImageUrl(theme.favicon),
+  };
 }
 
 // Чистит HTML-вставку:
 export function sanitizeEmbedHtml(html: unknown) {
   // Берем только строку:
   const source = safeString(html, 8000);
-  // Удаляем script:
-  const withoutScripts = source.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
-  // Удаляем обработчики событий:
-  const withoutEvents = withoutScripts.replace(/\son[a-z]+\s*=\s*(['"]).*?\1/gi, '');
-  // Удаляем javascript-ссылки:
-  const withoutJavascript = withoutEvents.replace(/javascript\s*:/gi, '');
-  // Удаляем html-data ссылки:
-  return withoutJavascript.replace(/data\s*:\s*text\/html/gi, '');
+  // Оставляем только безопасные теги и атрибуты:
+  return sanitizeHtml(source, {
+    allowedTags: ['a', 'b', 'br', 'div', 'em', 'iframe', 'img', 'li', 'ol', 'p', 'span', 'strong', 'ul'],
+    allowedAttributes: {
+      a: ['href', 'target', 'rel'],
+      iframe: ['src', 'title', 'width', 'height', 'loading', 'sandbox'],
+      img: ['src', 'alt', 'width', 'height', 'loading'],
+      '*': ['class', 'title'],
+    },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    allowedSchemesByTag: {
+      img: ['https'],
+      iframe: ['https'],
+    },
+    allowProtocolRelative: false,
+    transformTags: {
+      a: (_tagName, attribs) => ({
+        tagName: 'a',
+        attribs: { ...attribs, rel: 'noopener noreferrer' },
+      }),
+      iframe: (_tagName, attribs) => ({
+        tagName: 'iframe',
+        attribs: { ...attribs, sandbox: 'allow-same-origin allow-popups allow-forms', loading: 'lazy' },
+      }),
+    },
+  });
 }
 
 // Чистит элемент конструктора:
@@ -82,6 +117,15 @@ function sanitizeElement(element: unknown) {
   // Embed хранит HTML:
   if (next.type === 'embed') {
     data.code = sanitizeEmbedHtml(data.code);
+  }
+  // Изображение хранит URL загруженного файла:
+  if (next.type === 'image') {
+    data.src = safeSiteImageUrl(data.src);
+  }
+  // Галерея хранит только доступные URL:
+  if (next.type === 'gallery') {
+    const images = Array.isArray(data.images) ? data.images : [];
+    data.images = images.slice(0, 30).map(safeSiteImageUrl).filter(Boolean);
   }
   // Стили элемента:
   if (isRecord(next.style)) next.style = { ...next.style };
@@ -134,10 +178,8 @@ export function validateConstructorPayload(body: unknown, slug: string): SafeCon
   if (!isRecord(body)) throw new SiteBuilderValidationError('Некорректные данные конструктора');
   // Страницы обязательны:
   if (!Array.isArray(body.pages)) throw new SiteBuilderValidationError('В конструкторе нет страниц');
-  // Берем тему:
-  const theme = isRecord(body.theme) ? { ...body.theme } : {};
-  // Чистим CSS:
-  theme.customCss = sanitizeCustomCss(theme.customCss);
+  // Берем только настройки, которые доступны в интерфейсе:
+  const theme = sanitizeTheme(body.theme);
   // Чистим страницы:
   const pages = body.pages.slice(0, 20).map(sanitizePage).filter(Boolean);
   // Нужна хотя бы одна страница:
@@ -147,6 +189,5 @@ export function validateConstructorPayload(body: unknown, slug: string): SafeCon
     pages,
     theme,
     siteSlug: slug,
-    version: typeof body.version === 'number' ? body.version : undefined,
   };
 }

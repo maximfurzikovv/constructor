@@ -1,10 +1,21 @@
 ﻿import { Router } from 'express';
+import multer from 'multer';
 import prisma from '../db';
 import { AuthRequest, requireAuth, requireRole } from '../authSecurity';
 import { normalizeSiteSlug, SiteBuilderValidationError, validateConstructorPayload } from '../siteBuilderSecurity';
 import { calculateRouteMetrics } from '../routeMetrics';
+import { storeMediaFile } from '../objectStorage';
 
 const router = Router();
+
+// Принимает изображение сайта перед загрузкой во внешнее хранилище:
+const siteImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    callback(null, file.mimetype.startsWith('image/')); // Только изображения
+  },
+});
 
 // Приводит пользовательский адрес сайта к безопасному slug:
 function normalizeSlug(value: unknown, fallback: string) {
@@ -50,6 +61,25 @@ router.get('/constructor/slug-availability', requireAuth, requireRole('guide'), 
   const taken = await isSlugTaken(slug, site.id); // Занятость адреса
 
   res.json({ data: { slug, available: !taken } }); // Состояние адреса
+});
+
+// Загружает изображение конструктора во внешнее хранилище:
+router.post('/constructor/asset/upload', requireAuth, requireRole('guide'), siteImageUpload.single('file'), async (req: AuthRequest, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Выберите изображение' }); // Выбранный файл
+
+  const site = await prisma.showcaseSite.findFirst({
+    where: { authorId: req.user!.id },
+    select: { id: true },
+  }); // Сайт автора
+  if (!site) return res.status(404).json({ error: 'Site not found' });
+
+  try {
+    const stored = await storeMediaFile(req.file, req.user!.id, `site-${site.id}`); // URL изображения
+    return res.status(201).json({ data: { url: stored.url } }); // Ссылка для JSON сайта
+  } catch (error) {
+    console.error('Site image upload failed:', error); // Причина ошибки
+    return res.status(503).json({ error: 'Не удалось сохранить изображение' });
+  }
 });
 
 // Публикует сайт из конструктора:
@@ -151,8 +181,8 @@ router.get('/:slug', async (req, res) => {
     where: { slug: req.params.slug },
   });
 
-  // Если сайт не найден, публичная страница не открывается:
-  if (!site) return res.status(404).json({ error: 'Site not found' });
+  // Неопубликованный сайт не должен открываться посетителю:
+  if (!site || !site.published || !site.publishedJson) return res.status(404).json({ error: 'Site not found' });
 
   // Берем только опубликованные экскурсии автора:
   const publishedExcursions = await prisma.excursion.findMany({
@@ -204,10 +234,8 @@ router.get('/:slug', async (req, res) => {
     };
   });
 
-  // Публичный сайт должен показывать только publishedJson:
-  const constructorData = site.published
-    ? (site.publishedJson ? JSON.parse(site.publishedJson) : null)
-    : null;
+  // Публичный сайт показывает только publishedJson:
+  const constructorData = JSON.parse(site.publishedJson);
 
   // Собираем полный ответ для публичной витрины:
   res.json({
@@ -221,7 +249,7 @@ router.get('/:slug', async (req, res) => {
       published: site.published,
       createdAt: site.createdAt.toISOString(),
       excursionDetails,
-      constructorData: constructorData ? { ...constructorData, siteSlug: constructorData.siteSlug || site.slug } : null,
+      constructorData: { ...constructorData, siteSlug: constructorData.siteSlug || site.slug },
     },
   });
 });

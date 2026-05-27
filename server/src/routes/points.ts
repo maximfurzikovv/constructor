@@ -2,6 +2,7 @@
 import prisma from '../db';
 import { AuthRequest, requireAuth, requireRole } from '../authSecurity';
 import { calculateWalkingRouteMetrics } from '../routeMetrics';
+import { ApiValidationError, parseBody, pointCreateSchema, pointsSyncSchema, pointUpdateSchema } from '../apiValidation';
 
 const router = Router();
 
@@ -52,37 +53,44 @@ router.get('/route/:routeId', requireAuth, requireRole('guide'), async (req: Aut
 
 // Создает одну новую точку маршрута:
 router.post('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
+  let payload;
+  try {
+    payload = parseBody(pointCreateSchema, req.body); // Проверенные поля точки
+  } catch (error) {
+    if (error instanceof ApiValidationError) return res.status(error.statusCode).json({ error: error.message });
+    return res.status(400).json({ error: 'Некорректные данные точки' });
+  }
   // Проверяем, что маршрут существует:
-  const route = await findOwnedRoute(req.body.routeId, req.user!.id);
+  const route = await findOwnedRoute(payload.routeId, req.user!.id);
   if (!route) return res.status(404).json({ error: 'Route not found' });
 
   // Количество точек используется как следующий order:
-  const maxOrder = await prisma.point.count({ where: { routeId: req.body.routeId } });
+  const maxOrder = await prisma.point.count({ where: { routeId: payload.routeId } });
 
   // Создаем точку с координатами и настройками активации:
   const point = await prisma.point.create({
     data: {
-      routeId: req.body.routeId,
-      title: req.body.title || `Точка ${maxOrder + 1}`,
-      description: req.body.description || '',
-      lat: Number(req.body.lat),
-      lng: Number(req.body.lng),
+      routeId: payload.routeId,
+      title: payload.title || `Точка ${maxOrder + 1}`,
+      description: payload.description || '',
+      lat: payload.lat,
+      lng: payload.lng,
       order: maxOrder,
-      duration: Number(req.body.duration) || 5,
-      radius: Number(req.body.radius) || 50,
+      duration: payload.duration ?? 5,
+      radius: payload.radius ?? 50,
     },
   });
 
   // После создания перечитываем точки, чтобы обновить линию маршрута:
   const allPoints = await prisma.point.findMany({
-    where: { routeId: req.body.routeId },
+    where: { routeId: payload.routeId },
     orderBy: { order: 'asc' },
   });
   // Получаем длину и время пешего пути либо резервный расчет:
   const metrics = await calculateWalkingRouteMetrics(allPoints);
   // routeJson нужен для хранения общей линии маршрута:
   await prisma.route.update({
-    where: { id: req.body.routeId },
+    where: { id: payload.routeId },
     data: { routeJson: buildRouteJson(allPoints), ...metrics },
   });
 
@@ -94,17 +102,8 @@ router.put('/route/:routeId/sync', requireAuth, requireRole('guide'), async (req
   try {
     // routeId приходит из URL:
     const { routeId } = req.params;
-    // points приходит из тела запроса и должен быть массивом:
-    const points: Array<{
-      id?: string;
-      title?: string;
-      description?: string;
-      lat: number | string;
-      lng: number | string;
-      order?: number;
-      duration?: number | string;
-      radius?: number | string;
-    }> = Array.isArray(req.body.points) ? req.body.points : [];
+    // points проходит строгую проверку до записи в базу:
+    const { points } = parseBody(pointsSyncSchema, req.body);
 
     // Нельзя синхронизировать точки несуществующего маршрута:
     const route = await findOwnedRoute(routeId, req.user!.id);
@@ -191,6 +190,7 @@ router.put('/route/:routeId/sync', requireAuth, requireRole('guide'), async (req
     // Клиент получает точки уже с настоящими id:
     res.json({ data: result });
   } catch (error: any) {
+    if (error instanceof ApiValidationError) return res.status(error.statusCode).json({ error: error.message });
     // Лог нужен, чтобы видеть причину ошибки в консоли или Render logs:
     console.error('Point sync failed:', error);
     res.status(500).json({ error: error.message || 'Point sync failed' });
@@ -200,16 +200,18 @@ router.put('/route/:routeId/sync', requireAuth, requireRole('guide'), async (req
 // Обновляет одну конкретную точку:
 router.put('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   try {
+    const payload = parseBody(pointUpdateSchema, req.body); // Разрешенные поля точки
     const existing = await findOwnedPoint(req.params.id, req.user!.id);
     if (!existing) return res.status(404).json({ error: 'Point not found' });
-    // req.body содержит поля, которые пришли из формы редактирования:
+    // В Prisma передаются только разрешенные поля:
     const point = await prisma.point.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: payload,
     });
     // Возвращаем обновленную точку:
     res.json({ data: point });
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiValidationError) return res.status(error.statusCode).json({ error: error.message });
     // Если id не найден, Prisma выбросит ошибку:
     res.status(404).json({ error: 'Point not found' });
   }

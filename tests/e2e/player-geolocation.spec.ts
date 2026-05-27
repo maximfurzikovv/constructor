@@ -70,6 +70,18 @@ test('player works on mobile viewport', async ({ page }) => {
     await expect(page.locator('.leaflet-container')).toBeVisible();
     // Панель точки должна быть видна:
     await expect(page.getByText(excursion.title).first()).toBeVisible();
+    // Показатели маршрута должны быть рассчитаны:
+    await expect(page.getByText(/0\.0 км/)).toHaveCount(0);
+    // Переходим к первой точке:
+    await page.getByRole('button', { name: 'Начать с первой точки' }).click();
+    // Длинное описание открывается отдельно:
+    await page.getByRole('button', { name: 'Читать полностью' }).click();
+    await expect(page.locator('.point-text-dialog')).toBeVisible();
+    await page.locator('.point-text-close').click();
+    // Переходим к завершению маршрута:
+    await page.getByRole('button', { name: /Следующая/ }).click();
+    await page.getByRole('button', { name: 'Завершить' }).click();
+    await expect(page.getByText('Маршрут пройден')).toBeVisible();
     // Горизонтального скролла быть не должно:
     await expectNoHorizontalOverflow(page);
   } finally {
