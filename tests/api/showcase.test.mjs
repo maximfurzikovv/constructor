@@ -70,6 +70,18 @@ test('showcase: save draft, publish constructor data, and open public site by sl
     assert.equal(publicSite.published, true);
     assert.equal(publicSite.constructorData.siteSlug, testSlug);
     assert.equal(publicSite.constructorData.pages[0].title, 'Главная');
+
+    const changedDraft = {
+      ...payload,
+      pages: [{ ...payload.pages[0], title: 'Черновик не для посетителя' }],
+    };
+    await apiRequest('/showcase/constructor/draft', {
+      method: 'PUT',
+      body: JSON.stringify(changedDraft),
+    }); // Сохраняем неопубликованный черновик
+
+    const publicAfterDraft = await apiRequest(`/showcase/${testSlug}`);
+    assert.equal(publicAfterDraft.constructorData.pages[0].title, 'Главная'); // Публичная версия не меняется
   } finally {
     await apiRequest('/showcase/constructor', {
       method: 'PUT',

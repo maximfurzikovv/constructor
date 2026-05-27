@@ -16,6 +16,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   // Пароль:
   const [password, setPassword] = useState('');
+  // Повтор пароля:
+  const [confirmPassword, setConfirmPassword] = useState('');
   // Текст ошибки:
   const [error, setError] = useState('');
 
@@ -23,11 +25,21 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); // Отключаем стандартную отправку браузера
     setError(''); // Очищаем прошлую ошибку
+    // Проверяем совпадение паролей до запроса:
+    if (password !== confirmPassword) {
+      setError('Пароли не совпадают');
+      return;
+    }
+    // Проверяем минимальную длину пароля:
+    if (password.length < 8) {
+      setError('Пароль должен содержать не менее 8 символов');
+      return;
+    }
     try {
       // Создаем пользователя через API:
-      const result: any = await api.register(email, password, name);
-      // Сохраняем JWT:
-      localStorage.setItem('token', result.token);
+      const result: any = await api.register(email.trim().toLowerCase(), password, confirmPassword, name.trim());
+      // Старый браузерный токен больше не используется:
+      localStorage.removeItem('token');
       // Сохраняем профиль пользователя:
       localStorage.setItem('user', JSON.stringify(result.user));
       // Переходим в админку:
@@ -67,6 +79,15 @@ export default function RegisterPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+          {/* Поле подтверждения пароля: */}
+          <Input
+            label="Повторите пароль"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
           />
           {/* Сообщение об ошибке: */}
           {error && <p className="auth-error">{error}</p>}

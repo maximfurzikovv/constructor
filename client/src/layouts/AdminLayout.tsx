@@ -1,6 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import './AdminLayout.css';
+import { api } from '../api/client';
 
 // Пункты бокового меню:
 const navItems = [
@@ -24,8 +25,9 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(() => !window.location.pathname.startsWith('/admin/showcase'));
 
   // Выход пользователя:
-  const handleLogout = () => {
-    localStorage.removeItem('token'); // Удаляем JWT
+  const handleLogout = async () => {
+    await api.logout().catch(() => undefined); // Очищаем HttpOnly cookie
+    localStorage.removeItem('token'); // Удаляем старый JWT
     localStorage.removeItem('user'); // Удаляем данные пользователя
     navigate('/login');
   };

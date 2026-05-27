@@ -1,7 +1,7 @@
 ﻿import { Router } from 'express';
 import prisma from '../db';
 import { AuthRequest, requireAuth, requireRole } from '../authSecurity';
-import { calculateRouteMetrics } from '../routeMetrics';
+import { calculateWalkingRouteMetrics } from '../routeMetrics';
 
 const router = Router();
 
@@ -37,7 +37,7 @@ function isPersistedId(id?: string) {
 }
 
 // Возвращает точки одного маршрута в порядке прохождения:
-router.get('/route/:routeId', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.get('/route/:routeId', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Точки маршрута доступны только владельцу экскурсии:
   const route = await findOwnedRoute(req.params.routeId, req.user!.id);
   if (!route) return res.status(404).json({ error: 'Route not found' });
@@ -51,7 +51,7 @@ router.get('/route/:routeId', requireAuth, requireRole('guide', 'admin'), async 
 });
 
 // Создает одну новую точку маршрута:
-router.post('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.post('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Проверяем, что маршрут существует:
   const route = await findOwnedRoute(req.body.routeId, req.user!.id);
   if (!route) return res.status(404).json({ error: 'Route not found' });
@@ -78,17 +78,19 @@ router.post('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthReq
     where: { routeId: req.body.routeId },
     orderBy: { order: 'asc' },
   });
+  // Получаем длину и время пешего пути либо резервный расчет:
+  const metrics = await calculateWalkingRouteMetrics(allPoints);
   // routeJson нужен для хранения общей линии маршрута:
   await prisma.route.update({
     where: { id: req.body.routeId },
-    data: { routeJson: buildRouteJson(allPoints) },
+    data: { routeJson: buildRouteJson(allPoints), ...metrics },
   });
 
   res.status(201).json({ data: { ...point, media: [] } });
 });
 
 // Полностью синхронизирует точки маршрута после редактирования:
-router.put('/route/:routeId/sync', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.put('/route/:routeId/sync', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   try {
     // routeId приходит из URL:
     const { routeId } = req.params;
@@ -107,6 +109,12 @@ router.put('/route/:routeId/sync', requireAuth, requireRole('guide', 'admin'), a
     // Нельзя синхронизировать точки несуществующего маршрута:
     const route = await findOwnedRoute(routeId, req.user!.id);
     if (!route) return res.status(404).json({ error: 'Route not found' });
+    // Метрики считаются до транзакции, чтобы внешний сервис не держал блокировку базы:
+    const metrics = await calculateWalkingRouteMetrics(points.map((point) => ({
+      lat: Number(point.lat),
+      lng: Number(point.lng),
+      duration: Number(point.duration) || 5,
+    })));
 
     // Все операции выполняются в транзакции, чтобы маршрут не сохранился наполовину:
     const result = await prisma.$transaction(async (tx) => {
@@ -166,8 +174,6 @@ router.put('/route/:routeId/sync', requireAuth, requireRole('guide', 'admin'), a
         synced.push(savedPoint);
       }
 
-      // После синхронизации пересчитываем показатели маршрута:
-      const metrics = calculateRouteMetrics(synced);
       // После синхронизации точек пересобираем GeoJSON маршрута:
       await tx.route.update({
         where: { id: routeId },
@@ -192,7 +198,7 @@ router.put('/route/:routeId/sync', requireAuth, requireRole('guide', 'admin'), a
 });
 
 // Обновляет одну конкретную точку:
-router.put('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.put('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   try {
     const existing = await findOwnedPoint(req.params.id, req.user!.id);
     if (!existing) return res.status(404).json({ error: 'Point not found' });
@@ -210,7 +216,7 @@ router.put('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthR
 });
 
 // Удаляет точку и пересчитывает порядок оставшихся точек:
-router.delete('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.delete('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   try {
     // Сначала ищем точку, потому что нужен routeId:
     const point = await findOwnedPoint(req.params.id, req.user!.id);
@@ -224,6 +230,8 @@ router.delete('/:id', requireAuth, requireRole('guide', 'admin'), async (req: Au
       where: { routeId: point.routeId },
       orderBy: { order: 'asc' },
     });
+    // Пересчитываем маршрут после удаления точки:
+    const metrics = await calculateWalkingRouteMetrics(remaining);
 
     // Перенумеровываем order без пропусков:
     for (let index = 0; index < remaining.length; index += 1) {
@@ -235,7 +243,7 @@ router.delete('/:id', requireAuth, requireRole('guide', 'admin'), async (req: Au
     // Обновляем линию маршрута после удаления точки:
     await prisma.route.update({
       where: { id: point.routeId },
-      data: { routeJson: buildRouteJson(remaining) },
+      data: { routeJson: buildRouteJson(remaining), ...metrics },
     });
 
     // Сообщаем клиенту, что операция выполнена:

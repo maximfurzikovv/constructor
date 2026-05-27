@@ -233,4 +233,35 @@ describe('data ownership and integrity API', () => {
       await apiRequest(`/excursions/${excursion.id}`, { method: 'DELETE' });
     }
   });
+
+  it('reports occupied site slug and rejects using it for another author', async () => {
+    // Создаем двух авторов с независимыми сайтами:
+    const owner = await registerGuide('slug-owner');
+    const stranger = await registerGuide('slug-stranger');
+    const slug = `occupied-${Date.now()}`; // Проверяемый адрес
+    const payload = {
+      siteSlug: slug,
+      theme: {},
+      pages: [{ id: 'page-main', title: 'Главная', slug: '', sections: [] }],
+    }; // Минимальные данные сайта
+
+    const occupied = await requestAs(owner.token, '/showcase/constructor/draft', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    assert.equal(occupied.response.status, 200);
+
+    // Второму автору адрес должен отображаться занятым:
+    const check = await requestAs(stranger.token, `/showcase/constructor/slug-availability?slug=${slug}`);
+    assert.equal(check.response.status, 200);
+    assert.equal(check.body.data.available, false);
+
+    // Обход интерфейса также не должен позволить сохранить адрес:
+    const save = await requestAs(stranger.token, '/showcase/constructor/draft', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    assert.equal(save.response.status, 409);
+    assert.equal(save.body.error, 'Этот адрес сайта уже занят');
+  });
 });

@@ -1374,6 +1374,23 @@
   color: var(--color-text-muted);
 }
 
+.slug-check {
+  margin-top: -2px;
+  font-weight: 600;
+}
+
+.slug-check.available {
+  color: #15803d;
+}
+
+.slug-check.taken {
+  color: #dc2626;
+}
+
+.slug-check.checking {
+  color: var(--color-text-secondary);
+}
+
 .builder-section {
   border: 2px solid transparent;
   transition: border-color 0.15s, box-shadow 0.15s;

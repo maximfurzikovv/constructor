@@ -9,7 +9,7 @@ async function main() {
   const userCount = await prisma.user.count();
   if (userCount > 0) {
     // Обновляем демо-автора.
-    await prisma.user.updateMany({ where: { id: 'user-1' }, data: { name: 'Максим Фурзиков', role: 'guide' } });
+    await prisma.user.updateMany({ where: { id: 'user-1' }, data: { name: 'Максим Фурзиков', role: 'guide', password: hashPassword('password123') } });
     // Обновляем демо-экскурсии.
     await prisma.excursion.updateMany({ where: { id: 'exc-1' }, data: { title: 'Классический Петербург', description: 'Пешеходная экскурсия по главным достопримечательностям центра Санкт-Петербурга: от Дворцовой площади до Исаакиевского собора.', city: 'Санкт-Петербург' } });
     await prisma.excursion.updateMany({ where: { id: 'exc-2' }, data: { title: 'Васильевский остров', description: 'Прогулка по Васильевскому острову от Стрелки до Академии художеств.', city: 'Санкт-Петербург' } });

@@ -11,9 +11,9 @@ export default function LoginPage() {
   // navigate:
   const navigate = useNavigate();
   // Email по умолчанию:
-  const [email, setEmail] = useState('guide@example.com');
+  const [email, setEmail] = useState('');
   // Пароль:
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState('');
   // Ошибка:
   const [error, setError] = useState('');
 
@@ -26,8 +26,8 @@ export default function LoginPage() {
     try {
       // Отправляем email и пароль на сервер:
       const result: any = await api.login(email, password);
-      // Сохраняем JWT:
-      localStorage.setItem('token', result.token);
+      // Старый браузерный токен больше не используется:
+      localStorage.removeItem('token');
       // Сохраняем данные пользователя:
       localStorage.setItem('user', JSON.stringify(result.user));
       // После входа открываем админку:
@@ -55,6 +55,7 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
           />
           {/* Поле пароля: */}
           <Input
@@ -62,6 +63,7 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
           />
           {/* Ошибка: */}
           {error && <p className="auth-error">{error}</p>}

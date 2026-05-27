@@ -4,7 +4,7 @@ export interface User {
   email: string;
   name: string;
   avatar?: string; // Ссылка на аватар
-  role: 'author' | 'admin'; // Роль
+  role: 'guide'; // Роль автора
   createdAt: string;
 }
 

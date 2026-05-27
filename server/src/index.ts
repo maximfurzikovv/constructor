@@ -12,8 +12,10 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3001; // Порт
 // Путь к фронтенду:
 const clientDistPath = path.resolve(__dirname, '..', '..', 'client', 'dist');
+// Отдельный origin нужен только при раздельном размещении клиента и API:
+const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? false : true);
 // CORS и middleware:
-app.use(cors());
+app.use(cors({ origin: corsOrigin, credentials: true })); // Cookie разрешены только нужному origin
 app.use(express.json({ limit: '50mb' }));
 
 // Раздача загруженных файлов:

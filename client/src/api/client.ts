@@ -59,16 +59,14 @@ async function compressImageForUpload(file: File): Promise<File> {
 
 // Общая функция для JSON-запросов к API:
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('token');  // Токен из localStorage
   // HTTP-запрос к серверу:
   const res = await fetch(`${BASE_URL}${url}`, {
     // Переданные настройки запроса сохраняются:
     ...options,
+    credentials: 'include', // Отправляем HttpOnly cookie
     headers: {
       // По умолчанию JSON:
       'Content-Type': 'application/json',
-
-      ...(token ? { Authorization: `Bearer ${token}` } : {}), // Если токен есть, Bearer-авторизация
       ...options?.headers,
     },
   });
@@ -94,13 +92,15 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   // Регистрация пользователя:
-  register: (email: string, password: string, name: string) =>
+  register: (email: string, password: string, confirmPassword: string, name: string) =>
     request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password, confirmPassword, name }),
     }),
   // Получение текущего пользователя по JWT:
   me: () => request('/auth/me'),
+  // Выход с очисткой серверной cookie:
+  logout: () => request('/auth/logout', { method: 'POST' }),
 
   // Получение списка экскурсий:
   getExcursions: () => request('/excursions'),
@@ -153,11 +153,9 @@ export const api = {
     // Привязываем файл к точке, если id передан:
     if (pointId) formData.append('pointId', pointId);
 
-    // Достаем токен:
-    const token = localStorage.getItem('token');
     const res = await fetch(`${BASE_URL}/media/upload`, {
       method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include', // Отправляем HttpOnly cookie
       body: formData,
     });
     // Ошибка загрузки:
@@ -183,4 +181,7 @@ export const api = {
     request('/showcase/constructor/draft', { method: 'PUT', body: JSON.stringify(data) }),
   // Получение текущих данных конструктора:
   getConstructorData: () => request('/showcase/constructor/data'),
+  // Проверка свободного адреса сайта:
+  checkSiteSlug: (slug: string) =>
+    request(`/showcase/constructor/slug-availability?slug=${encodeURIComponent(slug)}`),
 };

@@ -1,11 +1,18 @@
 import { Router } from 'express';
 import prisma from '../db';
 import { AuthRequest, getOptionalAuthUser, requireAuth, requireRole } from '../authSecurity';
-import { calculateRouteMetrics } from '../routeMetrics';
+import { calculateRouteMetrics, calculateWalkingRouteMetrics } from '../routeMetrics';
+import { removeStoredMedia } from '../objectStorage';
 // Маршрутизатор:
 const router = Router(); // API-маршруты
+
+// Возвращает сохраненные метрики либо резервный расчет старых данных:
+function readRouteMetrics(route: { duration: number; distance: number; points: Array<{ lat: number; lng: number; duration?: number | null }> }) {
+  if (route.distance > 0) return { duration: route.duration, distance: route.distance };
+  return calculateRouteMetrics(route.points); // Резерв для маршрута без пересчета
+}
 // GET получение списка экскурсий:
-router.get('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.get('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Текущий автор берется из JWT:
   const userId = req.user!.id;
   // Запрос всех экскурсий:
@@ -20,8 +27,8 @@ router.get('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequ
   });
   // Массив объектов для ответа API:
   const data = excursions.map((e) => {
-    // В списке метрики также считаются по фактическим точкам:
-    const metrics = e.route ? calculateRouteMetrics(e.route.points) : null;
+    // В списке показываются сохраненные показатели пешего маршрута:
+    const metrics = e.route ? readRouteMetrics(e.route) : null;
 
     return {
       id: e.id,
@@ -48,7 +55,7 @@ router.get('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequ
 });
 
 // GET статистики для дашборда:
-router.get('/stats', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.get('/stats', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Статистика считается только по данным текущего автора:
   const userId = req.user!.id;
   // Считаем несколько показателей параллельно:
@@ -98,15 +105,16 @@ router.get('/:id', async (req, res) => {
   // Для публичного просмотра берем опубликованный snapshot:
   if (req.query.published === 'true' && excursion.publishedSnapshot) {
     const snapshot = JSON.parse(excursion.publishedSnapshot);
-    // Старые публикации также получают актуальный расчет по точкам:
-    const metrics = snapshot.route?.points ? calculateRouteMetrics(snapshot.route.points) : null;
-    return res.json({
-      data: metrics ? { ...snapshot, route: { ...snapshot.route, ...metrics } } : snapshot,
-    });
+    // Для старой публикации с нулевыми показателями используется резервный расчет:
+    if (snapshot.route && !snapshot.route.distance && Array.isArray(snapshot.route.points)) {
+      const metrics = calculateRouteMetrics(snapshot.route.points); // Показатели по гаверсинусу
+      snapshot.route = { ...snapshot.route, ...metrics }; // Исправленный ответ
+    }
+    return res.json({ data: snapshot }); // Публичная версия экскурсии
   }
 
-  // Метрики вычисляются по фактически сохраненным точкам:
-  const routeMetrics = excursion.route ? calculateRouteMetrics(excursion.route.points) : null;
+  // Метрики берутся из сохраненного пешего маршрута:
+  const routeMetrics = excursion.route ? readRouteMetrics(excursion.route) : null;
   // Иначе собираем текущие данные из базы:
   res.json({
     data: {
@@ -138,7 +146,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST создания новой экскурсии:
-router.post('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.post('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Новая экскурсия привязывается к текущему пользователю:
   const userId = req.user!.id;
   // Создаем экскурсию и сразу создаем пустой маршрут:
@@ -184,7 +192,7 @@ router.post('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthReq
 });
 
 // PUT обновления экскурсии:
-router.put('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.put('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Обновлять можно только свои экскурсии:
   const userId = req.user!.id;
   // Отделяем route от основных полей экскурсии:
@@ -203,17 +211,12 @@ router.put('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthR
       include: { route: true },
     });
 
-    // Update route fields if provided:
-    // Если клиент прислал route, обновляем поля маршрута отдельно:
+    // Если клиент прислал route, обновляем только выбранный вид передвижения:
     if (route && excursion.route) {
-      // routeUpdate собирается только из реально переданных полей:
       const routeUpdate: any = {};
-      if (route.duration !== undefined) routeUpdate.duration = route.duration;
-      if (route.distance !== undefined) routeUpdate.distance = route.distance;
       if (route.transport !== undefined) routeUpdate.transport = route.transport;
-      if (route.routeGeo !== undefined) routeUpdate.routeJson = JSON.stringify(route.routeGeo);
 
-      // Если есть что обновлять, сохраняем route:
+      // Геометрия и показатели меняются только при синхронизации точек:
       if (Object.keys(routeUpdate).length > 0) {
         await prisma.route.update({
           where: { id: excursion.route.id },
@@ -258,7 +261,7 @@ router.put('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthR
 });
 
 // PUT публикации экскурсии:
-router.put('/:id/publish', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.put('/:id/publish', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Публиковать можно только свою экскурсию:
   const userId = req.user!.id;
   try {
@@ -280,8 +283,8 @@ router.put('/:id/publish', requireAuth, requireRole('guide', 'admin'), async (re
     // Проверяем владельца перед публикацией:
     if (excursion.authorId !== userId) return res.status(404).json({ error: 'Excursion not found' });
 
-    // Для публикации используем расчет по сохраненным точкам:
-    const routeMetrics = excursion.route ? calculateRouteMetrics(excursion.route.points) : null;
+    // Перед публикацией получаем показатели пешего маршрута по улицам:
+    const routeMetrics = excursion.route ? await calculateWalkingRouteMetrics(excursion.route.points) : null;
     const snapshot = {
       id: excursion.id,
       title: excursion.title,
@@ -329,13 +332,21 @@ router.put('/:id/publish', requireAuth, requireRole('guide', 'admin'), async (re
   }
 });
 
-router.delete('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.delete('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Удалять можно только свои экскурсии:
   const userId = req.user!.id;
   try {
     // Сначала проверяем, что экскурсия принадлежит текущему автору:
-    const existing = await prisma.excursion.findFirst({ where: { id: req.params.id, authorId: userId } });
+    const existing = await prisma.excursion.findFirst({
+      where: { id: req.params.id, authorId: userId },
+      include: { media: { select: { storageKey: true } } },
+    });
     if (!existing) return res.status(404).json({ error: 'Excursion not found' });
+
+    // Удаляем бинарные объекты экскурсии из Cloudinary:
+    await Promise.all(existing.media.map((item) => removeStoredMedia(item.storageKey)));
+
+    // Каскад базы удаляет маршрут, точки и записи медиа:
     await prisma.excursion.delete({ where: { id: existing.id } });
     res.json({ data: { success: true } });
   } catch {

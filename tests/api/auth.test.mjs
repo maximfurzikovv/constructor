@@ -34,7 +34,7 @@ test('auth: invalid password returns 401', async () => {
   });
 
   assert.equal(response.status, 401);
-  assert.equal(body.error, 'Invalid email or password');
+  assert.equal(body.error, 'Неверная почта или пароль');
 });
 
 test('auth: user registration returns token and created user', async () => {
@@ -51,4 +51,42 @@ test('auth: user registration returns token and created user', async () => {
   assert.equal(result.token.split('.').length, 3);
   assert.equal(result.user.email, email);
   assert.equal(result.user.name, 'Test User');
+});
+
+test('auth: duplicate email returns clear conflict', async () => {
+  const email = `duplicate-${Date.now()}-${Math.round(Math.random() * 10000)}@example.com`;
+  const registration = {
+    email,
+    password: 'password123',
+    confirmPassword: 'password123',
+    name: 'Duplicate User',
+  }; // Данные повторной регистрации
+
+  await apiRequest('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(registration),
+  });
+
+  const { response, body } = await apiRequestRaw('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ ...registration, email: email.toUpperCase() }),
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal(body.error, 'Пользователь с такой почтой уже зарегистрирован');
+});
+
+test('auth: mismatched registration passwords are rejected', async () => {
+  const { response, body } = await apiRequestRaw('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: `mismatch-${Date.now()}@example.com`,
+      password: 'password123',
+      confirmPassword: 'password456',
+      name: 'Mismatch User',
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error, 'Пароли не совпадают');
 });

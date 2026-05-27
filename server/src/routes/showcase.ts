@@ -12,11 +12,20 @@ function normalizeSlug(value: unknown, fallback: string) {
   return normalizeSiteSlug(value, fallback);
 }
 
+// Проверяет, занят ли адрес другим сайтом:
+async function isSlugTaken(slug: string, siteId: string) {
+  const existing = await prisma.showcaseSite.findFirst({
+    where: { slug, id: { not: siteId } },
+    select: { id: true },
+  }); // Другой сайт с таким адресом
+  return Boolean(existing); // Результат проверки
+}
+
 // Возвращает черновые данные конструктора для редактора:
-router.get('/constructor/data', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.get('/constructor/data', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Автор сайта берется из JWT:
   const userId = req.user!.id;
-  // Сейчас используется демонстрационный автор user-1:
+  // Ищем личный сайт авторизованного пользователя:
   const site = await prisma.showcaseSite.findFirst({ where: { authorId: userId } });
   // Если личный сайт еще не создан, возвращаем null:
   if (!site) {
@@ -32,8 +41,19 @@ router.get('/constructor/data', requireAuth, requireRole('guide', 'admin'), asyn
   res.json({ data: { ...data, siteSlug: data.siteSlug || site.slug } });
 });
 
+// Проверяет доступность адреса сайта при вводе в конструкторе:
+router.get('/constructor/slug-availability', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
+  const site = await prisma.showcaseSite.findFirst({ where: { authorId: req.user!.id } }); // Сайт автора
+  if (!site) return res.status(404).json({ error: 'Site not found' });
+
+  const slug = normalizeSlug(req.query.slug, site.slug); // Проверяемый адрес
+  const taken = await isSlugTaken(slug, site.id); // Занятость адреса
+
+  res.json({ data: { slug, available: !taken } }); // Состояние адреса
+});
+
 // Публикует сайт из конструктора:
-router.put('/constructor', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.put('/constructor', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Публикуем сайт текущего автора:
   const userId = req.user!.id;
   // Находим сайт текущего автора:
@@ -42,6 +62,10 @@ router.put('/constructor', requireAuth, requireRole('guide', 'admin'), async (re
 
   // Нормализуем адрес, который пользователь указал в настройках сайта:
   const slug = normalizeSlug(req.body.siteSlug, site.slug);
+  // Не разрешаем публикацию на адресе другого сайта:
+  if (await isSlugTaken(slug, site.id)) {
+    return res.status(409).json({ error: 'Этот адрес сайта уже занят' });
+  }
   // Проверяем данные конструктора:
   let payload;
   try {
@@ -55,23 +79,29 @@ router.put('/constructor', requireAuth, requireRole('guide', 'admin'), async (re
   // Сохраняем структуру конструктора в JSON-строку:
   const json = JSON.stringify(payload);
 
-  // При публикации черновик и опубликованная версия становятся одинаковыми:
-  await prisma.showcaseSite.update({
-    where: { id: site.id },
-    data: {
-      constructorJson: json,
-      publishedJson: json,
-      published: true,
-      slug,
-    },
-  });
+  try {
+    // При публикации черновик и опубликованная версия становятся одинаковыми:
+    await prisma.showcaseSite.update({
+      where: { id: site.id },
+      data: {
+        constructorJson: json,
+        publishedJson: json,
+        published: true,
+        slug,
+      },
+    });
+  } catch (error: any) {
+    // Уникальный индекс защищает от одновременного выбора slug:
+    if (error?.code === 'P2002') return res.status(409).json({ error: 'Этот адрес сайта уже занят' });
+    throw error;
+  }
 
   // Клиент получает slug, чтобы показать ссылку на опубликованный сайт:
   res.json({ data: { success: true, slug } });
 });
 
 // Сохраняет черновик конструктора без публикации:
-router.put('/constructor/draft', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.put('/constructor/draft', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Черновик сохраняется для текущего автора:
   const userId = req.user!.id;
   // Ищем сайт автора:
@@ -80,6 +110,10 @@ router.put('/constructor/draft', requireAuth, requireRole('guide', 'admin'), asy
 
   // Даже в черновике slug нормализуется, чтобы не сохранить неправильный URL:
   const slug = normalizeSlug(req.body.siteSlug, site.slug);
+  // Не разрешаем сохранить занятый адрес:
+  if (await isSlugTaken(slug, site.id)) {
+    return res.status(409).json({ error: 'Этот адрес сайта уже занят' });
+  }
   // Проверяем данные конструктора:
   let payload;
   try {
@@ -91,14 +125,20 @@ router.put('/constructor/draft', requireAuth, requireRole('guide', 'admin'), asy
     return res.status(500).json({ error: 'Ошибка проверки конструктора' });
   }
 
-  // publishedJson не меняется, поэтому публичный сайт остается прежним:
-  await prisma.showcaseSite.update({
-    where: { id: site.id },
-    data: {
-      constructorJson: JSON.stringify(payload),
-      slug,
-    },
-  });
+  try {
+    // publishedJson не меняется, поэтому публичный сайт остается прежним:
+    await prisma.showcaseSite.update({
+      where: { id: site.id },
+      data: {
+        constructorJson: JSON.stringify(payload),
+        slug,
+      },
+    });
+  } catch (error: any) {
+    // Уникальный индекс защищает от одновременного выбора slug:
+    if (error?.code === 'P2002') return res.status(409).json({ error: 'Этот адрес сайта уже занят' });
+    throw error;
+  }
 
   // Возвращаем успех и актуальный slug:
   res.json({ data: { success: true, slug } });
@@ -107,21 +147,9 @@ router.put('/constructor/draft', requireAuth, requireRole('guide', 'admin'), asy
 // Возвращает опубликованный сайт по slug:
 router.get('/:slug', async (req, res) => {
   // Сначала ищем сайт по адресу из URL:
-  let site = await prisma.showcaseSite.findUnique({
+  const site = await prisma.showcaseSite.findUnique({
     where: { slug: req.params.slug },
   });
-
-  // Совместимость со старым адресом maxim-furzikov:
-  if (!site && req.params.slug === 'maxim-furzikov') {
-    // Если сайт автора есть, назначаем ему ожидаемый slug:
-    const current = await prisma.showcaseSite.findFirst({ where: { authorId: 'user-1' } });
-    if (current) {
-      site = await prisma.showcaseSite.update({
-        where: { id: current.id },
-        data: { slug: 'maxim-furzikov', title: 'Экскурсии Максима Фурзикова' },
-      });
-    }
-  }
 
   // Если сайт не найден, публичная страница не открывается:
   if (!site) return res.status(404).json({ error: 'Site not found' });
@@ -141,8 +169,10 @@ router.get('/:slug', async (req, res) => {
     // Если есть snapshot, публичная карточка строится по опубликованной версии:
     if (e.publishedSnapshot) {
       const snap = JSON.parse(e.publishedSnapshot);
-      // Показатели карточки вычисляются по опубликованным точкам:
-      const metrics = snap.route?.points ? calculateRouteMetrics(snap.route.points) : { duration: 0, distance: 0 };
+      // Показатели карточки фиксируются в опубликованной версии:
+      const metrics = snap.route?.distance > 0
+        ? { duration: snap.route.duration, distance: snap.route.distance }
+        : (snap.route?.points ? calculateRouteMetrics(snap.route.points) : { duration: 0, distance: 0 });
       return {
         id: snap.id,
         title: snap.title,
@@ -155,8 +185,11 @@ router.get('/:slug', async (req, res) => {
         status: snap.status,
       };
     }
-    // Без snapshot расчет выполняется по текущим точкам маршрута:
-    const metrics = e.route ? calculateRouteMetrics(e.route.points) : { duration: 0, distance: 0 };
+    // Без snapshot используем сохраненные показатели маршрута:
+    const route = e.route; // Маршрут экскурсии
+    const metrics = route && route.distance > 0
+      ? { duration: route.duration, distance: route.distance }
+      : (route ? calculateRouteMetrics(route.points) : { duration: 0, distance: 0 });
     // Если snapshot нет, используем текущие данные из базы:
     return {
       id: e.id,
@@ -166,14 +199,14 @@ router.get('/:slug', async (req, res) => {
       coverImage: e.coverImage,
       duration: metrics.duration,
       distance: metrics.distance,
-      transport: e.route?.transport || 'walk',
+      transport: route?.transport || 'walk',
       status: e.status,
     };
   });
 
   // Публичный сайт должен показывать только publishedJson:
   const constructorData = site.published
-    ? (site.publishedJson ? JSON.parse(site.publishedJson) : (site.constructorJson ? JSON.parse(site.constructorJson) : null))
+    ? (site.publishedJson ? JSON.parse(site.publishedJson) : null)
     : null;
 
   // Собираем полный ответ для публичной витрины:
@@ -194,7 +227,7 @@ router.get('/:slug', async (req, res) => {
 });
 
 // Обновляет базовые настройки витрины старого формата:
-router.put('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.put('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Базовые настройки меняет только владелец сайта:
   const userId = req.user!.id;
   // Ищем сайт автора:

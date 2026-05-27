@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import prisma from '../db';
 import { AuthRequest, requireAuth, requireRole } from '../authSecurity';
+import { removeStoredMedia, storeMediaFile } from '../objectStorage';
 
 const router = Router();
 // Разрешенные типы медиафайлов:
@@ -31,7 +32,7 @@ async function isPointInsideExcursion(pointId: string | null | undefined, excurs
   return Boolean(point);
 }
 
-// Old local uploads remain readable, but new demo uploads are DB-backed:
+// Старые локальные файлы остаются доступными после подключения Cloudinary:
 // Папка нужна для совместимости со старыми файлами, которые могли храниться на диске:
 const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
 // Если папки еще нет, создаем ее при старте сервера:
@@ -41,7 +42,7 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Multer принимает файл из multipart/form-data:
 const upload = multer({
-  // В бесплатном деплое файл удобнее держать в памяти и потом сохранить в базе:
+  // Буфер нужен для передачи файла в объектное хранилище:
   storage: multer.memoryStorage(),
   // Ограничение 8 МБ защищает сервер от слишком тяжелых загрузок:
   limits: { fileSize: maxUploadSize },
@@ -52,7 +53,7 @@ const upload = multer({
 });
 
 // Возвращает список медиафайлов:
-router.get('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.get('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // excursionId позволяет отфильтровать файлы конкретной экскурсии:
   const { excursionId } = req.query;
   // Пользователь видит только свои медиафайлы:
@@ -71,7 +72,7 @@ router.get('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequ
 });
 
 // Возвращает один медиафайл по id:
-router.get('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.get('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Ищем запись в таблице Media:
   const item = await prisma.media.findFirst({
     where: { id: req.params.id, excursion: { authorId: req.user!.id } },
@@ -83,7 +84,7 @@ router.get('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthR
 });
 
 // Загружает реальный файл через multipart/form-data:
-router.post('/upload', requireAuth, requireRole('guide', 'admin'), upload.single('file'), async (req: AuthRequest, res) => {
+router.post('/upload', requireAuth, requireRole('guide'), upload.single('file'), async (req: AuthRequest, res) => {
   // Без файла загрузка не имеет смысла:
   if (!req.file) return res.status(400).json({ error: 'File is required' });
   // MIME-тип должен быть изображением или аудио:
@@ -100,33 +101,43 @@ router.post('/upload', requireAuth, requireRole('guide', 'admin'), upload.single
     return res.status(400).json({ error: 'Point does not belong to excursion' });
   }
 
-  // Файл кодируется в data URL, чтобы храниться прямо в PostgreSQL:
-  const url = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-  // Тип определяется по MIME type загруженного файла:
-  const type = req.file.mimetype.startsWith('image/') ? 'image' : 'audio';
+  try {
+    // Новый файл загружается в Cloudinary при настроенной интеграции:
+    const stored = await storeMediaFile(req.file, req.user!.id, excursion.id);
+    // Тип определяется по MIME type загруженного файла:
+    const type = req.file.mimetype.startsWith('image/') ? 'image' : 'audio';
 
-  // Создаем запись медиа в базе:
-  const item = await prisma.media.create({
-    data: {
-      excursionId: req.body.excursionId,
-      pointId: req.body.pointId || null,
-      type,
-      url,
-      title: req.body.title || req.file.originalname,
-      description: req.body.description || null,
-    },
-  });
-  // 201 означает, что файл создан:
-  res.status(201).json({ data: item });
+    // В PostgreSQL сохраняются ссылка и метаданные медиа:
+    const item = await prisma.media.create({
+      data: {
+        excursionId: req.body.excursionId,
+        pointId: req.body.pointId || null,
+        type,
+        url: stored.url,
+        storageKey: stored.storageKey,
+        title: req.body.title || req.file.originalname,
+        description: req.body.description || null,
+      },
+    });
+    // 201 означает, что файл создан:
+    return res.status(201).json({ data: item });
+  } catch (error: any) {
+    console.error('Media upload failed:', error); // Причина сбоя хранилища
+    return res.status(503).json({ error: 'Не удалось сохранить файл в хранилище' });
+  }
 });
 
 // Создает медиа-запись без загрузки файла, например по готовому URL:
-router.post('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.post('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Медиа без файла тоже должно относиться к своей экскурсии:
   const excursion = await findOwnedExcursion(req.body.excursionId, req.user!.id);
   if (!excursion) return res.status(404).json({ error: 'Excursion not found' });
   if (!(await isPointInsideExcursion(req.body.pointId, excursion.id))) {
     return res.status(400).json({ error: 'Point does not belong to excursion' });
+  }
+  // В production нельзя обходить Cloudinary вставкой Base64 через JSON:
+  if (process.env.NODE_ENV === 'production' && String(req.body.url || '').startsWith('data:')) {
+    return res.status(400).json({ error: 'Data URL media is not allowed' });
   }
   // Берем значения из тела запроса и задаем fallback:
   const item = await prisma.media.create({
@@ -144,7 +155,7 @@ router.post('/', requireAuth, requireRole('guide', 'admin'), async (req: AuthReq
 });
 
 // Обновляет подпись, описание или привязку медиа:
-router.put('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.put('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   try {
     const existing = await prisma.media.findFirst({
       where: { id: req.params.id, excursion: { authorId: req.user!.id } },
@@ -172,7 +183,7 @@ router.put('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthR
 });
 
 // Удаляет медиафайл:
-router.delete('/:id', requireAuth, requireRole('guide', 'admin'), async (req: AuthRequest, res) => {
+router.delete('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   try {
     // Сначала ищем запись, чтобы понять, есть ли файл:
     const item = await prisma.media.findFirst({
@@ -186,6 +197,8 @@ router.delete('/:id', requireAuth, requireRole('guide', 'admin'), async (req: Au
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
+    // Для нового формата удаляем бинарный объект из Cloudinary:
+    await removeStoredMedia(item.storageKey);
     // Удаляем запись из базы:
     await prisma.media.delete({ where: { id: req.params.id } });
     // Клиенту возвращается простой признак успеха:

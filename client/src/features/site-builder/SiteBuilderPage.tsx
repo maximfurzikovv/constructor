@@ -840,6 +840,8 @@ export default function SiteBuilderPage() {
   const [pages, setPages] = useState<BuilderPage[]>(getInitialPages);
   // Пользовательский адрес опубликованного сайта:
   const [siteSlug, setSiteSlug] = useState('');
+  // Состояние проверки свободного адреса сайта:
+  const [slugCheck, setSlugCheck] = useState<'idle' | 'checking' | 'available' | 'taken' | 'error'>('idle');
   // Id активной страницы:
   const [activePageId, setActivePageId] = useState('page-main');
   // Открытие списка страниц в панели инструментов:
@@ -949,6 +951,23 @@ export default function SiteBuilderPage() {
       safeSetLocalStorage(localDraftKey, JSON.stringify({ pages, theme, siteSlug, version: 2 }), localHistoryKey);
     }, 700);
   }, [pages, theme, siteSlug, localDraftKey, localHistoryKey]);
+
+  // Проверяет адрес сайта после паузы во вводе:
+  useEffect(() => {
+    if (!siteSlug.trim()) {
+      setSlugCheck('idle');
+      return;
+    }
+
+    setSlugCheck('checking');
+    const timer = window.setTimeout(() => {
+      api.checkSiteSlug(siteSlug)
+        .then((result: any) => setSlugCheck(result.available ? 'available' : 'taken'))
+        .catch(() => setSlugCheck('error'));
+    }, 450); // Не отправляем запрос на каждый символ
+
+    return () => window.clearTimeout(timer); // Отменяем устаревшую проверку
+  }, [siteSlug]);
 
   // Сохраняет снимок состояния для undo/redo:
   useEffect(() => {
@@ -1352,28 +1371,38 @@ export default function SiteBuilderPage() {
 
   // Сохраняет черновик сайта:
   const handleSave = async () => {
+    // Останавливаем сохранение с занятым адресом:
+    if (slugCheck === 'taken') {
+      setStatusMsg('Этот адрес сайта уже занят');
+      return;
+    }
     setSaving(true);
     setStatusMsg(null);
     try {
       await api.saveDraft(savePayload);
       setStatusMsg('Черновик сохранен');
       setTimeout(() => setStatusMsg(null), 3000);
-    } catch {
-      setStatusMsg('Ошибка сохранения');
+    } catch (error: any) {
+      setStatusMsg(error.message || 'Ошибка сохранения'); // Сообщение сервера
     }
     setSaving(false);
   };
 
   // Публикует сайт и делает его доступным по slug:
   const handlePublish = async () => {
+    // Останавливаем публикацию с занятым адресом:
+    if (slugCheck === 'taken') {
+      setStatusMsg('Этот адрес сайта уже занят');
+      return;
+    }
     setPublishing(true);
     setStatusMsg(null);
     try {
       await api.saveConstructor(savePayload);
       setStatusMsg('Сайт опубликован');
       setTimeout(() => setStatusMsg(null), 3000);
-    } catch {
-      setStatusMsg('Ошибка публикации');
+    } catch (error: any) {
+      setStatusMsg(error.message || 'Ошибка публикации'); // Сообщение сервера
     }
     setPublishing(false);
   };
@@ -1527,6 +1556,7 @@ export default function SiteBuilderPage() {
               setTheme={setTheme}
               siteSlug={siteSlug}
               setSiteSlug={setSiteSlug}
+              slugCheck={slugCheck}
               uploadSingleImage={uploadSingleImage}
             />
           </div>
@@ -1928,12 +1958,14 @@ function GeneralThemeEditor({
   setTheme,
   siteSlug,
   setSiteSlug,
+  slugCheck,
   uploadSingleImage,
 }: {
   theme: ThemeConfig;
   setTheme: (theme: ThemeConfig) => void;
   siteSlug: string;
   setSiteSlug: (slug: string) => void;
+  slugCheck: 'idle' | 'checking' | 'available' | 'taken' | 'error';
   uploadSingleImage: (callback: (url: string) => void) => void;
 }) {
   return (
@@ -1941,6 +1973,10 @@ function GeneralThemeEditor({
       <p className="panel-label">Общие настройки</p>
       <Input label="Адрес сайта" value={siteSlug} onChange={(event) => setSiteSlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))} />
       <p className="field-hint">Сайт будет открываться по ссылке /s/{siteSlug || '...'}</p>
+      {slugCheck === 'checking' && <p className="field-hint slug-check checking">Проверяем адрес...</p>}
+      {slugCheck === 'available' && <p className="field-hint slug-check available">Адрес свободен</p>}
+      {slugCheck === 'taken' && <p className="field-hint slug-check taken">Адрес уже занят</p>}
+      {slugCheck === 'error' && <p className="field-hint slug-check taken">Не удалось проверить адрес</p>}
       <ColorField label="Основной цвет" value={theme.primaryColor} onChange={(primaryColor) => setTheme({ ...theme, primaryColor })} />
       <ColorField label="Фон сайта" value={theme.siteBg} onChange={(siteBg) => setTheme({ ...theme, siteBg })} />
       <Button variant="secondary" size="sm" onClick={() => uploadSingleImage((siteBgImage) => setTheme({ ...theme, siteBgImage }))}>Загрузить фон сайта</Button>

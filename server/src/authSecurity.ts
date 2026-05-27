@@ -2,10 +2,12 @@
 import type { NextFunction, Request, Response } from 'express';
 import prisma, { withDbRetry } from './db';
 
-// Секрет JWT берется из окружения:
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+// Секрет JWT обязателен для опубликованного приложения:
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'local-development-secret-change-me');
 // Токен живет семь дней:
 const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7;
+// Имя защищенной cookie:
+export const AUTH_COOKIE_NAME = 'excursion_session';
 // Количество итераций для PBKDF2:
 const PASSWORD_ITERATIONS = 120_000;
 // Длина соли в байтах:
@@ -50,10 +52,16 @@ export function hashPassword(password: string) {
   return `pbkdf2$${PASSWORD_ITERATIONS}$${salt}$${hash}`;
 }
 
-// Сравнивает введенный пароль с сохраненным значением:
+// Проверяет наличие секрета подписи:
+function requireJwtSecret() {
+  if (!JWT_SECRET) throw new Error('JWT_SECRET is required in production');
+  return JWT_SECRET;
+}
+
+// Сравнивает введенный пароль с сохраненным хэшем:
 export function verifyPassword(password: string, storedPassword: string) {
-  // Старые seed-пароли поддерживаются для плавной миграции:
-  if (!isPasswordHash(storedPassword)) return password === storedPassword;
+  // Открытый пароль больше не считается допустимым форматом:
+  if (!isPasswordHash(storedPassword)) return false;
   // Разбираем сохраненный формат хэша:
   const [, iterationsRaw, salt, hash] = storedPassword.split('$');
   const iterations = Number(iterationsRaw);
@@ -76,7 +84,7 @@ function base64UrlEncode(value: string | Buffer) {
 
 // Подписывает часть JWT:
 function signJwtPart(value: string) {
-  return crypto.createHmac('sha256', JWT_SECRET).update(value).digest('base64url');
+  return crypto.createHmac('sha256', requireJwtSecret()).update(value).digest('base64url');
 }
 
 // Создает JWT для авторизованного пользователя:
@@ -105,6 +113,31 @@ function getBearerToken(header: string | undefined) {
   return token;
 }
 
+// Достает JWT из защищенной cookie:
+function getCookieToken(header: string | undefined) {
+  if (!header) return null;
+  const part = header.split(';').map((item) => item.trim()).find((item) => item.startsWith(`${AUTH_COOKIE_NAME}=`));
+  if (!part) return null;
+  return decodeURIComponent(part.slice(AUTH_COOKIE_NAME.length + 1));
+}
+
+// Достает JWT из запроса:
+function getRequestToken(req: Request) {
+  return getBearerToken(req.headers.authorization) || getCookieToken(req.headers.cookie);
+}
+
+// Формирует HttpOnly cookie после успешного входа:
+export function createAuthCookie(token: string) {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''; // HTTPS для Render
+  return `${AUTH_COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; Path=/; Max-Age=${JWT_EXPIRES_IN_SECONDS}; SameSite=Lax${secure}`;
+}
+
+// Удаляет HttpOnly cookie при выходе:
+export function clearAuthCookie() {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''; // HTTPS для Render
+  return `${AUTH_COOKIE_NAME}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+}
+
 // Проверяет JWT и возвращает payload:
 export function verifyJwtToken(token: string): JwtPayload | null {
   const parts = token.split('.');
@@ -128,8 +161,8 @@ export function verifyJwtToken(token: string): JwtPayload | null {
 // Middleware проверяет авторизацию пользователя:
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    // Токен приходит из Authorization:
-    const token = getBearerToken(req.headers.authorization);
+    // Токен приходит из HttpOnly cookie либо Authorization для API-тестов:
+    const token = getRequestToken(req);
     if (!token) return res.status(401).json({ error: 'Not authorized' });
     // Payload должен быть подписан и не просрочен:
     const payload = verifyJwtToken(token);
@@ -147,13 +180,12 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
   }
 }
 
-// Мягко читает пользователя, если токен есть:
 // Проверяет роль пользователя:
 export function requireRole(...roles: string[]) {
   // Возвращаем middleware для Express:
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     // Пользователь должен быть добавлен requireAuth:
-    const userRole = req.user?.role === 'author' ? 'guide' : req.user?.role;
+    const userRole = req.user?.role; // Роль из единой модели данных
     // Без роли доступ запрещен:
     if (!userRole) return res.status(403).json({ error: 'Forbidden' });
     // Роль должна входить в список разрешенных:
@@ -165,7 +197,7 @@ export function requireRole(...roles: string[]) {
 
 export async function getOptionalAuthUser(req: Request): Promise<AuthUser | null> {
   // Без токена запрос остается публичным:
-  const token = getBearerToken(req.headers.authorization);
+  const token = getRequestToken(req);
   if (!token) return null;
   // Невалидный токен не дает прав доступа:
   const payload = verifyJwtToken(token);
