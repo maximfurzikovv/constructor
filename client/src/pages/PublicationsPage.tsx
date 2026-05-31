@@ -20,7 +20,7 @@ type SitePublicationState = {
 };
 
 function getSiteStatusLabel(site?: SitePublicationState | null) {
-  if (!site?.siteSlug) return 'Сайт-витрина не создан';
+  if (!site?.siteSlug) return 'Веб-приложение не создано';
   if (site.sitePublished) return 'Одобрено';
   if (site.siteModerationComment) return 'Отклонено';
   if (site.siteModerationStatus === 'review') return 'На модерации';
@@ -81,12 +81,12 @@ export default function PublicationsPage() {
       {/* Заголовок раздела: */}
       <h1>Публикации</h1>
       {/* Подпись раздела: */}
-      <p className="pub-subtitle">Статусы экскурсий и сайта-витрины после проверки администратором</p>
+      <p className="pub-subtitle">Статусы экскурсий и веб-приложения после проверки администратором</p>
 
       <Card className="pub-site-card">
         <div className="pub-main-row">
           <div className="pub-info">
-            <h3>Сайт-витрина</h3>
+            <h3>Веб-приложение</h3>
             <span className="pub-city">{site?.siteTitle || 'Личный сайт экскурсовода'}</span>
             {site?.siteSlug && <span className="pub-city">/s/{site.siteSlug}</span>}
             <span className={`pub-site-status pub-site-status-${getSiteStatusClass(site)}`}>
