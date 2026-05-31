@@ -1,5 +1,5 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
-import { apiBaseUrl, expectNoHorizontalOverflow, getAuthToken, login } from './helpers';
+import { apiBaseUrl, approveSiteBySlug, expectNoHorizontalOverflow, getAuthToken, login } from './helpers';
 
 // Тестовая структура конструктора:
 type TestConstructorData = {
@@ -62,6 +62,7 @@ async function restoreSite(request: APIRequestContext, data: TestConstructorData
   });
   // Восстановление должно пройти:
   expect(response.ok()).toBeTruthy();
+  await approveSiteBySlug(data.siteSlug || 'maxim-furzikov');
 }
 
 // Публикует тестовый сайт через API:
@@ -116,6 +117,7 @@ async function publishTestSite(request: APIRequestContext, slug: string) {
   });
   // Публикация должна пройти:
   expect(response.ok()).toBeTruthy();
+  await approveSiteBySlug(slug);
 }
 
 // Проверяет кастомный slug:

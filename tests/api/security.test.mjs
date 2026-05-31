@@ -11,7 +11,7 @@ after(() => {
 });
 
 // Минимальный конструктор для восстановления:
-function fallbackConstructor(original) {
+function fallbackConstructor(original = {}) {
   // Возвращаем безопасную страницу:
   return {
     siteSlug: original.slug || 'maxim-furzikov',
@@ -25,6 +25,12 @@ function fallbackConstructor(original) {
       },
     ],
   };
+}
+
+function ensureConstructorPayload(payload) {
+  return Array.isArray(payload?.pages) && payload.pages.length > 0
+    ? payload
+    : fallbackConstructor({ slug: payload?.siteSlug || 'maxim-furzikov' });
 }
 
 async function loginAdmin() {
@@ -117,7 +123,7 @@ test('api validation: constructor removes unknown theme fields and sanitizes emb
     ],
   };
 
-  const originalPayload = await apiRequest('/showcase/constructor/data');
+  const originalPayload = ensureConstructorPayload(await apiRequest('/showcase/constructor/data'));
   const adminToken = await loginAdmin();
 
   try {

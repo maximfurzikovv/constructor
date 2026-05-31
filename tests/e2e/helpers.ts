@@ -7,6 +7,7 @@ export const apiBaseUrl = `http://localhost:${serverPort}`;
 
 // Токен автора для API-подготовки E2E-данных:
 let authToken: string | null = null;
+let adminToken: string | null = null;
 
 // Получает JWT для запросов из тестов:
 export async function getAuthToken() {
@@ -20,6 +21,46 @@ export async function getAuthToken() {
   authToken = body.data.token;
   await api.dispose();
   return authToken;
+}
+
+export async function getAdminToken() {
+  if (adminToken) return adminToken;
+  const api = await request.newContext({ baseURL: apiBaseUrl });
+  const response = await api.post('/api/auth/login', {
+    data: { email: 'admin@constructor.local', password: 'Admin4219!' },
+  });
+  const body = await response.json().catch(() => null);
+  expect(response.ok(), `Admin login failed: ${response.status()} ${JSON.stringify(body)}`).toBeTruthy();
+  adminToken = body.data.token;
+  await api.dispose();
+  return adminToken;
+}
+
+export async function approveExcursion(id: string) {
+  const token = await getAdminToken();
+  const api = await request.newContext({ baseURL: apiBaseUrl, extraHTTPHeaders: { Authorization: `Bearer ${token}` } });
+  const response = await api.put(`/api/admin/excursions/${id}/status`, {
+    data: { status: 'published' },
+  });
+  const body = await response.json().catch(() => null);
+  expect(response.ok(), `Approve excursion failed: ${response.status()} ${JSON.stringify(body)}`).toBeTruthy();
+  await api.dispose();
+}
+
+export async function approveSiteBySlug(slug: string) {
+  const token = await getAdminToken();
+  const api = await request.newContext({ baseURL: apiBaseUrl, extraHTTPHeaders: { Authorization: `Bearer ${token}` } });
+  const overview = await api.get('/api/admin/overview');
+  const overviewBody = await overview.json().catch(() => null);
+  expect(overview.ok(), `Admin overview failed: ${overview.status()} ${JSON.stringify(overviewBody)}`).toBeTruthy();
+  const site = overviewBody.data.sites.find((item: { slug: string }) => item.slug === slug);
+  expect(site, `Site ${slug} not found in admin overview`).toBeTruthy();
+  const response = await api.put(`/api/admin/sites/${site.id}/published`, {
+    data: { published: true },
+  });
+  const body = await response.json().catch(() => null);
+  expect(response.ok(), `Approve site failed: ${response.status()} ${JSON.stringify(body)}`).toBeTruthy();
+  await api.dispose();
 }
 
 // Выполняет вход в админ-панель через форму:
@@ -63,6 +104,7 @@ export async function createPublishedExcursion() {
   // Публикуем экскурсию для публичного плеера:
   const publishResponse = await api.put(`/api/excursions/${excursion.id}/publish`);
   expect(publishResponse.ok()).toBeTruthy();
+  await approveExcursion(excursion.id);
   await api.dispose();
   return excursion;
 }

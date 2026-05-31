@@ -11,10 +11,10 @@ after(() => {
 });
 
 // Создает минимальный конструктор:
-function fallbackConstructor(original) {
+function fallbackConstructor(original = {}) {
   // Возвращаем одну страницу:
   return {
-    siteSlug: original.slug,
+    siteSlug: original.slug || 'maxim-furzikov',
     pages: [
       {
         id: 'page-main',
@@ -24,8 +24,14 @@ function fallbackConstructor(original) {
       },
     ],
     theme: {},
-    siteTitle: original.title,
+    siteTitle: original.title || 'Витрина',
   };
+}
+
+function ensureConstructorPayload(payload) {
+  return Array.isArray(payload?.pages) && payload.pages.length > 0
+    ? payload
+    : fallbackConstructor({ slug: payload?.siteSlug || 'maxim-furzikov', title: payload?.siteTitle });
 }
 
 async function loginAdmin() {
@@ -56,7 +62,7 @@ async function approveSiteBySlug(adminToken, slug) {
 }
 
 test('showcase: save draft, publish constructor data, and open public site by slug', async () => {
-  const originalPayload = await apiRequest('/showcase/constructor/data');
+  const originalPayload = ensureConstructorPayload(await apiRequest('/showcase/constructor/data'));
   const adminToken = await loginAdmin();
 
   const testSlug = `api-test-${Date.now()}`;

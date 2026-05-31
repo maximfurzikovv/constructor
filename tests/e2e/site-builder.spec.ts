@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoHorizontalOverflow, login } from './helpers';
+import { approveSiteBySlug, expectNoHorizontalOverflow, login } from './helpers';
 
 // Проверяет полный путь публикации сайта:
 test('author publishes the constructor page and opens the public site', async ({ page }) => {
@@ -14,6 +14,7 @@ test('author publishes the constructor page and opens the public site', async ({
   await page.locator('.rail-publish-action').click();
   // Ждем всплывающее подтверждение:
   await expect(page.locator('.builder-toast')).toBeVisible({ timeout: 10_000 });
+  await approveSiteBySlug('maxim-furzikov');
 
   // Открываем опубликованную страницу:
   await page.goto('/s/maxim-furzikov');
