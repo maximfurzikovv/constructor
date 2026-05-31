@@ -182,7 +182,6 @@
 }
 
 .td-review-form input,
-.td-review-form select,
 .td-review-form textarea {
   width: 100%;
   border: 1px solid var(--color-border);
@@ -190,6 +189,39 @@
   padding: 10px 12px;
   font: inherit;
   background: #ffffff;
+}
+
+.td-rating-picker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  min-height: 42px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.td-rating-picker button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  transition: color 0.15s, transform 0.15s;
+}
+
+.td-rating-picker button.active {
+  color: #f59e0b;
+}
+
+.td-rating-picker button:hover {
+  color: #f59e0b;
+  transform: translateY(-1px);
 }
 
 .td-review-form textarea {

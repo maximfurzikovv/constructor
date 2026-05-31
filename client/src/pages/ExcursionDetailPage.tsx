@@ -131,12 +131,21 @@ export default function ExcursionDetailPage() {
             maxLength={80}
             required
           />
-          <select
-            value={reviewForm.rating}
-            onChange={(event) => setReviewForm({ ...reviewForm, rating: Number(event.target.value) })}
-          >
-            {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} из 5</option>)}
-          </select>
+          <div className="td-rating-picker" role="radiogroup" aria-label="Оценка экскурсии">
+            {[1, 2, 3, 4, 5].map((rating) => (
+              <button
+                key={rating}
+                type="button"
+                className={rating <= reviewForm.rating ? 'active' : ''}
+                onClick={() => setReviewForm({ ...reviewForm, rating })}
+                aria-label={`${rating} из 5`}
+                aria-checked={reviewForm.rating === rating}
+                role="radio"
+              >
+                ★
+              </button>
+            ))}
+          </div>
           <textarea
             value={reviewForm.text}
             onChange={(event) => setReviewForm({ ...reviewForm, text: event.target.value })}
