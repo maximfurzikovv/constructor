@@ -70,14 +70,22 @@ router.get('/constructor/data', requireAuth, requireRole('guide'), async (req: A
   if (!site) {
     return res.json({ data: null });
   }
+  const siteMeta = {
+    siteId: site.id,
+    siteTitle: site.title,
+    siteSlug: site.slug,
+    sitePublished: site.published,
+    siteModerationComment: site.moderationComment,
+    siteModerationStatus: site.published ? 'published' : site.moderationComment ? 'archived' : site.constructorJson ? 'review' : 'draft',
+  };
   // Если JSON конструктора еще не создан, возвращаем только личный slug:
   if (!site.constructorJson) {
-    return res.json({ data: { siteSlug: site.slug } });
+    return res.json({ data: siteMeta });
   }
   // constructorJson хранит структуру страниц, секций, колонок, элементов и темы:
   const data = JSON.parse(site.constructorJson);
   // siteSlug добавляется для совместимости со старыми сохраненными данными:
-  res.json({ data: { ...data, siteSlug: data.siteSlug || site.slug } });
+  res.json({ data: { ...siteMeta, ...data, siteSlug: data.siteSlug || site.slug } });
 });
 
 // Проверяет доступность адреса сайта при вводе в конструкторе:

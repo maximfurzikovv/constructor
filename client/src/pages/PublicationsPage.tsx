@@ -11,15 +11,41 @@ function formatDate(value?: string | null) {
   return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value));
 }
 
+type SitePublicationState = {
+  siteTitle?: string;
+  siteSlug?: string;
+  sitePublished?: boolean;
+  siteModerationComment?: string | null;
+  siteModerationStatus?: 'draft' | 'review' | 'published' | 'archived';
+};
+
+function getSiteStatusLabel(site?: SitePublicationState | null) {
+  if (!site?.siteSlug) return 'Сайт-витрина не создан';
+  if (site.sitePublished) return 'Одобрено';
+  if (site.siteModerationComment) return 'Отклонено';
+  if (site.siteModerationStatus === 'review') return 'На модерации';
+  return 'Черновик';
+}
+
+function getSiteStatusClass(site?: SitePublicationState | null) {
+  if (!site?.siteSlug) return 'draft';
+  if (site.sitePublished) return 'published';
+  if (site.siteModerationComment) return 'archived';
+  if (site.siteModerationStatus === 'review') return 'review';
+  return 'draft';
+}
+
 // Страница управления публикациями:
 export default function PublicationsPage() {
   const [excursions, setExcursions] = useState<Excursion[]>([]); // Список экскурсий
+  const [site, setSite] = useState<SitePublicationState | null>(null);
   const [historyOpen, setHistoryOpen] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, ExcursionPublication[]>>({});
 
   // Загружаем экскурсии при открытии страницы:
   useEffect(() => {
     api.getExcursions().then((d: any) => setExcursions(d));
+    api.getConstructorData().then((d: any) => setSite(d)).catch(() => setSite(null));
   }, []);
 
   // Отправка на публикацию:
@@ -55,7 +81,33 @@ export default function PublicationsPage() {
       {/* Заголовок раздела: */}
       <h1>Публикации</h1>
       {/* Подпись раздела: */}
-      <p className="pub-subtitle">Управление статусами экскурсий</p>
+      <p className="pub-subtitle">Статусы экскурсий и сайта-витрины после проверки администратором</p>
+
+      <Card className="pub-site-card">
+        <div className="pub-main-row">
+          <div className="pub-info">
+            <h3>Сайт-витрина</h3>
+            <span className="pub-city">{site?.siteTitle || 'Личный сайт экскурсовода'}</span>
+            {site?.siteSlug && <span className="pub-city">/s/{site.siteSlug}</span>}
+            <span className={`pub-site-status pub-site-status-${getSiteStatusClass(site)}`}>
+              {getSiteStatusLabel(site)}
+            </span>
+            {site?.siteModerationComment && (
+              <span className="pub-reject">Комментарий: {site.siteModerationComment}</span>
+            )}
+          </div>
+          <div className="pub-actions">
+            {site?.sitePublished && site.siteSlug && (
+              <a className="pub-link" href={`/s/${site.siteSlug}`} target="_blank" rel="noreferrer">
+                Открыть сайт
+              </a>
+            )}
+            <a className="pub-link" href="/admin/showcase">
+              Открыть конструктор
+            </a>
+          </div>
+        </div>
+      </Card>
 
       {/* Список материалов: */}
       <div className="pub-list">

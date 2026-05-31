@@ -14,6 +14,15 @@
   gap: 8px;
 }
 
+.pub-site-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
 .pub-item {
   display: flex;
   flex-direction: column;
@@ -59,6 +68,34 @@
   color: #92400e;
 }
 
+.pub-site-status {
+  display: inline-flex;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pub-site-status-published {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pub-site-status-review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pub-site-status-archived {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.pub-site-status-draft {
+  background: #f3f4f6;
+  color: #374151;
+}
+
 .pub-reject {
   max-width: 520px;
   background: #fee2e2;
@@ -70,6 +107,26 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.pub-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pub-link:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .pub-history {
