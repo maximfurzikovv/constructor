@@ -4,6 +4,28 @@ import { AuthRequest, getOptionalAuthUser, requireAuth, requireRole } from '../a
 import { calculateRouteMetrics, calculateWalkingRouteMetrics } from '../routeMetrics';
 import { removeStoredMedia } from '../objectStorage';
 import { ApiValidationError, excursionCreateSchema, excursionUpdateSchema, parseBody } from '../apiValidation';
+
+function formatReview(review: { id: string; excursionId: string; authorName: string; rating: number; text: string; published: boolean; createdAt: Date }) {
+  return {
+    id: review.id,
+    excursionId: review.excursionId,
+    authorName: review.authorName,
+    rating: review.rating,
+    text: review.text,
+    published: review.published,
+    createdAt: review.createdAt.toISOString(),
+  };
+}
+
+function sanitizeReviewBody(body: any) {
+  const authorName = String(body?.authorName || '').trim().slice(0, 80);
+  const text = String(body?.text || '').trim().slice(0, 1200);
+  const rating = Number(body?.rating);
+  if (!authorName) return { error: 'Укажите имя' };
+  if (!text || text.length < 10) return { error: 'Отзыв должен быть не короче 10 символов' };
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) return { error: 'Оценка должна быть от 1 до 5' };
+  return { authorName, text, rating };
+}
 // Маршрутизатор:
 const router = Router(); // API-маршруты
 
@@ -24,6 +46,7 @@ router.get('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res)
       route: { // А также все маршруты и точки
         include: { points: { orderBy: { order: 'asc' } } },
       },
+      reviews: { where: { published: true }, orderBy: { createdAt: 'desc' } },
     },
   });
   // Массив объектов для ответа API:
@@ -39,8 +62,10 @@ router.get('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res)
       status: e.status,
       city: e.city,
       coverImage: e.coverImage,
+      moderationComment: e.moderationComment,
       createdAt: e.createdAt.toISOString(),
       updatedAt: e.updatedAt.toISOString(),
+      reviews: e.reviews.map(formatReview),
       route: e.route // Если маршрут есть
         ? {
             id: e.route.id,
@@ -82,6 +107,70 @@ router.get('/stats', requireAuth, requireRole('guide'), async (req: AuthRequest,
 });
 
 // GET одной экскурсии по id:
+router.get('/:id/reviews', async (req, res) => {
+  const excursion = await prisma.excursion.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, status: true },
+  });
+  if (!excursion || excursion.status !== 'published') return res.status(404).json({ error: 'Excursion not found' });
+
+  const reviews = await prisma.review.findMany({
+    where: { excursionId: excursion.id, published: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json({ data: reviews.map(formatReview) });
+});
+
+router.post('/:id/reviews', async (req, res) => {
+  const payload = sanitizeReviewBody(req.body);
+  if ('error' in payload) return res.status(400).json({ error: payload.error });
+
+  const excursion = await prisma.excursion.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, status: true },
+  });
+  if (!excursion || excursion.status !== 'published') return res.status(404).json({ error: 'Excursion not found' });
+
+  const review = await prisma.review.create({
+    data: {
+      excursionId: excursion.id,
+      authorName: payload.authorName,
+      rating: payload.rating,
+      text: payload.text,
+    },
+  });
+  res.status(201).json({ data: formatReview(review) });
+});
+
+router.get('/:id/publications', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
+  const excursion = await prisma.excursion.findFirst({
+    where: { id: req.params.id, authorId: req.user!.id },
+    select: { id: true },
+  });
+  if (!excursion) return res.status(404).json({ error: 'Excursion not found' });
+
+  const publications = await prisma.excursionPublication.findMany({
+    where: { excursionId: excursion.id },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      excursionId: true,
+      status: true,
+      moderationComment: true,
+      createdAt: true,
+      reviewedAt: true,
+    },
+  });
+
+  res.json({
+    data: publications.map((item) => ({
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      reviewedAt: item.reviewedAt ? item.reviewedAt.toISOString() : null,
+    })),
+  });
+});
+
 router.get('/:id', async (req, res) => {
   // Ищем экскурсию вместе с маршрутом, точками и медиа:
   const excursion = await prisma.excursion.findUnique({
@@ -92,6 +181,7 @@ router.get('/:id', async (req, res) => {
           points: { orderBy: { order: 'asc' }, include: { media: true } },
         },
       },
+      reviews: { where: { published: true }, orderBy: { createdAt: 'desc' } },
     },
   });
   if (!excursion) return res.status(404).json({ error: 'Экскурсия не найдена' });
@@ -111,7 +201,7 @@ router.get('/:id', async (req, res) => {
       const metrics = calculateRouteMetrics(snapshot.route.points); // Показатели по гаверсинусу
       snapshot.route = { ...snapshot.route, ...metrics }; // Исправленный ответ
     }
-    return res.json({ data: snapshot }); // Публичная версия экскурсии
+    return res.json({ data: { ...snapshot, reviews: excursion.reviews.map(formatReview) } }); // Публичная версия экскурсии
   }
 
   // Метрики берутся из сохраненного пешего маршрута:
@@ -126,8 +216,10 @@ router.get('/:id', async (req, res) => {
       status: excursion.status,
       city: excursion.city,
       coverImage: excursion.coverImage,
+      moderationComment: excursion.moderationComment,
       createdAt: excursion.createdAt.toISOString(),
       updatedAt: excursion.updatedAt.toISOString(),
+      reviews: excursion.reviews.map(formatReview),
       route: excursion.route
         ? {
             id: excursion.route.id,
@@ -182,6 +274,7 @@ router.post('/', requireAuth, requireRole('guide'), async (req: AuthRequest, res
       status: excursion.status,
       city: excursion.city,
       coverImage: excursion.coverImage,
+      moderationComment: excursion.moderationComment,
       createdAt: excursion.createdAt.toISOString(),
       updatedAt: excursion.updatedAt.toISOString(),
       route: excursion.route
@@ -256,6 +349,7 @@ router.put('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, r
         status: updated!.status,
         city: updated!.city,
         coverImage: updated!.coverImage,
+        moderationComment: updated!.moderationComment,
         createdAt: updated!.createdAt.toISOString(),
         updatedAt: updated!.updatedAt.toISOString(),
         route: updated!.route
@@ -326,13 +420,23 @@ router.put('/:id/publish', requireAuth, requireRole('guide'), async (req: AuthRe
         : null,
     };
 
-    // Обновляем snapshot и сохраненные показатели маршрута вместе:
+    const snapshotJson = JSON.stringify(snapshot);
+
+    // Обновляем snapshot, сохраняем заявку на модерацию и показатели маршрута вместе:
     await prisma.$transaction([
       prisma.excursion.update({
         where: { id: req.params.id },
         data: {
-          status: 'published',
-          publishedSnapshot: JSON.stringify(snapshot),
+          status: 'review',
+          moderationComment: null,
+          publishedSnapshot: snapshotJson,
+        },
+      }),
+      prisma.excursionPublication.create({
+        data: {
+          excursionId: req.params.id,
+          snapshotJson,
+          status: 'review',
         },
       }),
       ...(excursion.route && routeMetrics
@@ -340,8 +444,8 @@ router.put('/:id/publish', requireAuth, requireRole('guide'), async (req: AuthRe
         : []),
     ]);
 
-    // Возвращаем опубликованную версию:
-    res.json({ data: snapshot });
+    // Возвращаем состояние заявки; публичной экскурсия станет после решения администратора:
+    res.json({ data: { ...snapshot, status: 'review' } });
   } catch {
     res.status(500).json({ error: 'Ошибка публикации' });
   }

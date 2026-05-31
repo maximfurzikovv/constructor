@@ -189,6 +189,16 @@ function resolveSiteHref(href: string, slug: string) {
   return page ? `/s/${slug}/${page}` : `/s/${slug}`;
 }
 
+function getAvailableReviews(excursions: any[], data: Record<string, any>) {
+  const selectedTourId = data.excursionId || 'all';
+  const selectedReviewIds: string[] = data.selectedReviewIds || [];
+  const reviews = excursions
+    .filter((exc) => selectedTourId === 'all' || exc.id === selectedTourId)
+    .flatMap((exc) => (exc.reviews || []).map((review: any) => ({ ...review, tourTitle: exc.title })))
+    .filter((review) => review.published !== false);
+  return selectedReviewIds.length > 0 ? reviews.filter((review) => selectedReviewIds.includes(review.id)) : reviews;
+}
+
 function PublicElement({ element, excursions, slug, primary }: { element: any; excursions: any[]; slug: string; primary: string }) {
   // Общие стили элемента переводятся в CSS:
   const css = styleToCss(element.style, primary);
@@ -346,6 +356,26 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
               </Link>
             ))}
         </div>
+      </div>
+    );
+  }
+  if (element.type === 'reviews') {
+    const reviews = getAvailableReviews(excursions, element.data);
+    return (
+      <div className="sc-el-reviews" style={css}>
+        <h2>{element.data.heading}</h2>
+        {reviews.length === 0 ? <p className="sc-el-empty">Пока нет отзывов</p> : (
+          <div className="sc-el-reviews-grid" style={{ gridTemplateColumns: `repeat(${element.data.columns || 2}, minmax(0, 1fr))` }}>
+            {reviews.map((review) => (
+              <article key={review.id} className="sc-el-review-card">
+                <div className="sc-el-review-rating">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</div>
+                <p>{review.text}</p>
+                <strong>{review.authorName}</strong>
+                <small>{review.tourTitle}</small>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

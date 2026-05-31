@@ -14,11 +14,31 @@ export default function ExcursionDetailPage() {
   const { slug, excursionId } = useParams<{ slug: string; excursionId: string }>();
   // Данные экскурсии:
   const [excursion, setExcursion] = useState<Excursion | null>(null);
+  const [reviewForm, setReviewForm] = useState({ authorName: '', rating: 5, text: '' });
+  const [reviewStatus, setReviewStatus] = useState<string | null>(null);
+  const [sendingReview, setSendingReview] = useState(false);
 
   // Опубликованная версия экскурсии:
   useEffect(() => {
     if (excursionId) api.getExcursion(excursionId, true).then((d: any) => setExcursion(d));
   }, [excursionId]);
+
+  const submitReview = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!excursionId || !excursion) return;
+    setSendingReview(true);
+    setReviewStatus(null);
+    try {
+      const review = await api.createReview(excursionId, reviewForm) as any;
+      setExcursion({ ...excursion, reviews: [review, ...(excursion.reviews || [])] });
+      setReviewForm({ authorName: '', rating: 5, text: '' });
+      setReviewStatus('Отзыв добавлен');
+    } catch (error: any) {
+      setReviewStatus(error.message || 'Не удалось добавить отзыв');
+    } finally {
+      setSendingReview(false);
+    }
+  };
 
   // Пока данных нет:
   if (!excursion || !excursion.route) return <p style={{ padding: 40 }}>Загрузка...</p>;
@@ -85,6 +105,50 @@ export default function ExcursionDetailPage() {
           <Button size="lg">Начать маршрут</Button>
         </Link>
       </div>
+
+      <section className="td-reviews">
+        <div className="td-section-head">
+          <h2>Отзывы</h2>
+          <span>{excursion.reviews?.length || 0}</span>
+        </div>
+        <div className="td-review-list">
+          {(excursion.reviews || []).length === 0 && <p className="td-empty">Пока нет отзывов. Можно оставить первый.</p>}
+          {(excursion.reviews || []).map((review) => (
+            <Card key={review.id} className="td-review-card">
+              <div className="td-review-head">
+                <strong>{review.authorName}</strong>
+                <span>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
+              </div>
+              <p>{review.text}</p>
+            </Card>
+          ))}
+        </div>
+        <form className="td-review-form" onSubmit={submitReview}>
+          <input
+            value={reviewForm.authorName}
+            onChange={(event) => setReviewForm({ ...reviewForm, authorName: event.target.value })}
+            placeholder="Ваше имя"
+            maxLength={80}
+            required
+          />
+          <select
+            value={reviewForm.rating}
+            onChange={(event) => setReviewForm({ ...reviewForm, rating: Number(event.target.value) })}
+          >
+            {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} из 5</option>)}
+          </select>
+          <textarea
+            value={reviewForm.text}
+            onChange={(event) => setReviewForm({ ...reviewForm, text: event.target.value })}
+            placeholder="Что понравилось в экскурсии"
+            minLength={10}
+            maxLength={1200}
+            required
+          />
+          <Button type="submit" disabled={sendingReview}>{sendingReview ? 'Отправляем...' : 'Добавить отзыв'}</Button>
+          {reviewStatus && <span className="td-review-status">{reviewStatus}</span>}
+        </form>
+      </section>
 
       {/* Список точек маршрута: */}
       <h2>Точки маршрута</h2>

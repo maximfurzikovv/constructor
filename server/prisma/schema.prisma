@@ -29,12 +29,30 @@ model Excursion {
   city              String   @default("")
   coverImage        String?
   publishedSnapshot String?
+  moderationComment String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   author User   @relation(fields: [authorId], references: [id])
   route  Route?
   media  Media[]
+  reviews Review[]
+  publications ExcursionPublication[]
+}
+
+model ExcursionPublication {
+  id                String   @id @default(uuid())
+  excursionId       String
+  snapshotJson      String
+  status            String   @default("review")
+  moderationComment String?
+  createdAt         DateTime @default(now())
+  reviewedAt        DateTime?
+
+  excursion Excursion @relation(fields: [excursionId], references: [id], onDelete: Cascade)
+
+  @@index([excursionId])
+  @@index([status])
 }
 
 model Route {
@@ -79,6 +97,20 @@ model Media {
   point     Point?    @relation(fields: [pointId], references: [id], onDelete: SetNull)
 }
 
+model Review {
+  id          String   @id @default(uuid())
+  excursionId String
+  authorName  String
+  rating      Int
+  text        String
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  excursion Excursion @relation(fields: [excursionId], references: [id], onDelete: Cascade)
+
+  @@index([excursionId])
+}
+
 model ShowcaseSite {
   id              String   @id @default(uuid())
   authorId        String
@@ -90,6 +122,7 @@ model ShowcaseSite {
   published       Boolean  @default(false)
   constructorJson String?
   publishedJson   String?
+  moderationComment String?
   createdAt       DateTime @default(now())
 
   author User @relation(fields: [authorId], references: [id])

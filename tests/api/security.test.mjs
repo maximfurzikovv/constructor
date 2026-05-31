@@ -27,6 +27,33 @@ function fallbackConstructor(original) {
   };
 }
 
+async function loginAdmin() {
+  const adminLogin = await apiRequestRaw('/auth/login', {
+    method: 'POST',
+    skipAuth: true,
+    body: JSON.stringify({ email: 'admin@constructor.local', password: 'Admin4219!' }),
+  });
+  assert.equal(adminLogin.response.ok, true);
+  return adminLogin.body.data.token;
+}
+
+async function approveSiteBySlug(adminToken, slug) {
+  const overview = await apiRequestRaw('/admin/overview', {
+    skipAuth: true,
+    headers: { Authorization: `Bearer ${adminToken}` },
+  });
+  assert.equal(overview.response.ok, true);
+  const site = overview.body.data.sites.find((item) => item.slug === slug);
+  assert.ok(site);
+  const approved = await apiRequestRaw(`/admin/sites/${site.id}/published`, {
+    method: 'PUT',
+    skipAuth: true,
+    headers: { Authorization: `Bearer ${adminToken}` },
+    body: JSON.stringify({ published: true }),
+  });
+  assert.equal(approved.response.ok, true);
+}
+
 test('api security: protected constructor route rejects missing token', async () => {
   const { response, body } = await apiRequestRaw('/showcase/constructor/data', {
     method: 'GET',
@@ -90,8 +117,8 @@ test('api validation: constructor removes unknown theme fields and sanitizes emb
     ],
   };
 
-  const original = await apiRequest('/showcase/maxim-furzikov');
-  const originalPayload = original.constructorData || fallbackConstructor(original);
+  const originalPayload = await apiRequest('/showcase/constructor/data');
+  const adminToken = await loginAdmin();
 
   try {
     const result = await apiRequest('/showcase/constructor', {
@@ -99,6 +126,9 @@ test('api validation: constructor removes unknown theme fields and sanitizes emb
       body: JSON.stringify(payload),
     });
     assert.equal(result.slug, testSlug);
+    assert.equal(result.status, 'review');
+
+    await approveSiteBySlug(adminToken, testSlug);
 
     const publicSite = await apiRequest(`/showcase/${testSlug}`);
     const savedTheme = publicSite.constructorData.theme;
@@ -111,8 +141,9 @@ test('api validation: constructor removes unknown theme fields and sanitizes emb
       method: 'PUT',
       body: JSON.stringify({
         ...originalPayload,
-        siteSlug: originalPayload.siteSlug || original.slug || 'maxim-furzikov',
+        siteSlug: originalPayload.siteSlug || 'maxim-furzikov',
       }),
     });
+    await approveSiteBySlug(adminToken, originalPayload.siteSlug || 'maxim-furzikov');
   }
 });

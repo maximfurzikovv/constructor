@@ -23,6 +23,34 @@ function normalizeSlug(value: unknown, fallback: string) {
   return normalizeSiteSlug(value, fallback);
 }
 
+function formatReview(review: { id: string; excursionId: string; authorName: string; rating: number; text: string; published: boolean; createdAt: Date }) {
+  return {
+    id: review.id,
+    excursionId: review.excursionId,
+    authorName: review.authorName,
+    rating: review.rating,
+    text: review.text,
+    published: review.published,
+    createdAt: review.createdAt.toISOString(),
+  };
+}
+
+function createFallbackConstructor(site: { slug: string; title: string }) {
+  return {
+    siteSlug: site.slug,
+    siteTitle: site.title,
+    pages: [
+      {
+        id: 'page-main',
+        title: 'Главная',
+        slug: '',
+        sections: [],
+      },
+    ],
+    theme: {},
+  };
+}
+
 // Проверяет, занят ли адрес другим сайтом:
 async function isSlugTaken(slug: string, siteId: string) {
   const existing = await prisma.showcaseSite.findFirst({
@@ -82,9 +110,9 @@ router.post('/constructor/asset/upload', requireAuth, requireRole('guide'), site
   }
 });
 
-// Публикует сайт из конструктора:
+// Отправляет сайт из конструктора на модерацию:
 router.put('/constructor', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
-  // Публикуем сайт текущего автора:
+  // Отправляем сайт текущего автора на проверку администратором:
   const userId = req.user!.id;
   // Находим сайт текущего автора:
   const site = await prisma.showcaseSite.findFirst({ where: { authorId: userId } });
@@ -115,8 +143,8 @@ router.put('/constructor', requireAuth, requireRole('guide'), async (req: AuthRe
       where: { id: site.id },
       data: {
         constructorJson: json,
-        publishedJson: json,
-        published: true,
+        published: false,
+        moderationComment: null,
         slug,
       },
     });
@@ -126,8 +154,8 @@ router.put('/constructor', requireAuth, requireRole('guide'), async (req: AuthRe
     throw error;
   }
 
-  // Клиент получает slug, чтобы показать ссылку на опубликованный сайт:
-  res.json({ data: { success: true, slug } });
+  // Клиент получает slug, но публичным сайт станет только после решения администратора:
+  res.json({ data: { success: true, slug, status: 'review' } });
 });
 
 // Сохраняет черновик конструктора без публикации:
@@ -182,7 +210,7 @@ router.get('/:slug', async (req, res) => {
   });
 
   // Неопубликованный сайт не должен открываться посетителю:
-  if (!site || !site.published || !site.publishedJson) return res.status(404).json({ error: 'Site not found' });
+  if (!site || !site.published) return res.status(404).json({ error: 'Site not found' });
 
   // Берем только опубликованные экскурсии автора:
   const publishedExcursions = await prisma.excursion.findMany({
@@ -191,6 +219,7 @@ router.get('/:slug', async (req, res) => {
       route: {
         include: { points: { orderBy: { order: 'asc' } } },
       },
+      reviews: { where: { published: true }, orderBy: { createdAt: 'desc' } },
     },
   });
 
@@ -213,6 +242,7 @@ router.get('/:slug', async (req, res) => {
         distance: metrics.distance,
         transport: snap.route?.transport || 'walk',
         status: snap.status,
+        reviews: e.reviews.map(formatReview),
       };
     }
     // Без snapshot используем сохраненные показатели маршрута:
@@ -231,11 +261,12 @@ router.get('/:slug', async (req, res) => {
       distance: metrics.distance,
       transport: route?.transport || 'walk',
       status: e.status,
+      reviews: e.reviews.map(formatReview),
     };
   });
 
-  // Публичный сайт показывает только publishedJson:
-  const constructorData = JSON.parse(site.publishedJson);
+  // Публичный сайт показывает publishedJson или безопасную структуру для старых demo-данных:
+  const constructorData = site.publishedJson ? JSON.parse(site.publishedJson) : createFallbackConstructor(site);
 
   // Собираем полный ответ для публичной витрины:
   res.json({

@@ -5,6 +5,10 @@
   overflow-x: hidden;
 }
 
+.admin-layout.admin-theme {
+  background: #0b1120;
+}
+
 .sidebar {
   width: var(--sidebar-width);
   background: var(--color-surface);
@@ -16,6 +20,11 @@
   left: 0;
   bottom: 0;
   z-index: 10;
+}
+
+.admin-theme .sidebar {
+  background: #0f172a;
+  border-right-color: #273449;
 }
 
 .sidebar-header {
@@ -30,6 +39,14 @@
 .sidebar-header h2 {
   font-size: 18px;
   color: var(--color-primary);
+}
+
+.admin-theme .sidebar-header {
+  border-bottom-color: #273449;
+}
+
+.admin-theme .sidebar-header h2 {
+  color: #f8fafc;
 }
 
 .sidebar-collapse-btn,
@@ -53,6 +70,20 @@
   color: var(--color-primary);
   border-color: var(--color-primary);
   background: var(--color-primary-light);
+}
+
+.admin-theme .sidebar-collapse-btn,
+.admin-theme .sidebar-open-btn {
+  border-color: #334155;
+  background: #111827;
+  color: #cbd5e1;
+}
+
+.admin-theme .sidebar-collapse-btn:hover,
+.admin-theme .sidebar-open-btn:hover {
+  border-color: #60a5fa;
+  background: #1e3a8a;
+  color: #dbeafe;
 }
 
 .sidebar-open-btn {
@@ -92,15 +123,37 @@
   text-decoration: none;
 }
 
+.admin-theme .nav-item {
+  color: #cbd5e1;
+}
+
+.admin-theme .nav-item:hover {
+  background: #111827;
+  color: #f8fafc;
+}
+
 .nav-item.active {
   background: var(--color-primary-light);
   color: var(--color-primary);
   font-weight: 500;
 }
 
+.admin-theme .nav-item.active {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
 .sidebar-footer {
   padding: 16px;
   border-top: 1px solid var(--color-border);
+}
+
+.admin-theme .sidebar-footer {
+  border-top-color: #273449;
+}
+
+.admin-theme .user-name {
+  color: #e5e7eb;
 }
 
 .user-info {
@@ -127,6 +180,16 @@
   background: var(--color-bg);
 }
 
+.admin-theme .logout-btn {
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+.admin-theme .logout-btn:hover {
+  background: #111827;
+  color: #ffffff;
+}
+
 .admin-content {
   flex: 1;
   margin-left: var(--sidebar-width);
@@ -137,6 +200,10 @@
   max-width: calc(100vw - var(--sidebar-width));
   overflow-x: hidden;
   box-sizing: border-box;
+}
+
+.admin-theme .admin-content {
+  background: #0b1120;
 }
 
 .sidebar-collapsed .admin-content {

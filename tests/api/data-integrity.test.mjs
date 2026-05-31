@@ -77,6 +77,28 @@ async function createExcursionWithPoint() {
   return { excursion, point };
 }
 
+async function loginAdmin() {
+  const adminLogin = await apiRequestRaw('/auth/login', {
+    method: 'POST',
+    skipAuth: true,
+    body: JSON.stringify({ email: 'admin@constructor.local', password: 'Admin4219!' }),
+  });
+  assert.equal(adminLogin.response.ok, true);
+  return adminLogin.body.data.token;
+}
+
+async function approveSiteBySlug(adminToken, slug) {
+  const overview = await requestAs(adminToken, '/admin/overview');
+  assert.equal(overview.response.status, 200);
+  const site = overview.body.data.sites.find((item) => item.slug === slug);
+  assert.ok(site);
+  const approved = await requestAs(adminToken, `/admin/sites/${site.id}/published`, {
+    method: 'PUT',
+    body: JSON.stringify({ published: true }),
+  });
+  assert.equal(approved.response.status, 200);
+}
+
 describe('data ownership and integrity API', () => {
   before(ensureApiServer);
   after(stopApiServer);
@@ -305,6 +327,7 @@ describe('data ownership and integrity API', () => {
     // Регистрируем двух авторов:
     const first = await registerGuide('site-first');
     const second = await registerGuide('site-second');
+    const adminToken = await loginAdmin();
     const firstSlug = `first-site-${Date.now()}`;
     const secondSlug = `second-site-${Date.now()}`;
 
@@ -331,6 +354,8 @@ describe('data ownership and integrity API', () => {
     });
     assert.equal(firstPublish.response.status, 200);
     assert.equal(secondPublish.response.status, 200);
+    await approveSiteBySlug(adminToken, firstSlug);
+    await approveSiteBySlug(adminToken, secondSlug);
 
     // Публичные страницы не должны обмениваться данными:
     const firstSite = await requestAs(first.token, `/showcase/${firstSlug}`);

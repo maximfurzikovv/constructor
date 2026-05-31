@@ -16,15 +16,24 @@
 
 .pub-item {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.pub-main-row {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  gap: 16px;
 }
 
 .pub-info {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .pub-info h3 {
@@ -34,4 +43,70 @@
 .pub-city {
   font-size: 13px;
   color: var(--color-text-muted);
+}
+
+.pub-review,
+.pub-reject {
+  display: inline-flex;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pub-review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pub-reject {
+  max-width: 520px;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.pub-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pub-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+.pub-history p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.pub-history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.pub-history-item strong {
+  color: #991b1b;
+}
+
+@media (max-width: 720px) {
+  .pub-main-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pub-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }

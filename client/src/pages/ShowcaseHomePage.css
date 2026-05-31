@@ -377,7 +377,8 @@
 }
 
 .sc-el-gallery-grid,
-.sc-el-tours-grid {
+.sc-el-tours-grid,
+.sc-el-reviews-grid {
   display: grid;
   gap: 16px;
 }
@@ -390,6 +391,7 @@
 }
 
 .sc-el-tours h2,
+.sc-el-reviews h2,
 .sc-el-contacts h2 {
   font-size: 20px;
   margin-bottom: 16px;
@@ -428,6 +430,32 @@
 
 .sc-el-tour-card span,
 .sc-el-tour-card small {
+  color: #64748b;
+}
+
+.sc-el-review-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--sc-radius, 8px);
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.06);
+}
+
+.sc-el-review-rating {
+  color: #f59e0b;
+  letter-spacing: 1px;
+}
+
+.sc-el-review-card p {
+  color: #334155;
+  line-height: 1.6;
+}
+
+.sc-el-review-card small,
+.sc-el-empty {
   color: #64748b;
 }
 
@@ -624,6 +652,7 @@
   }
 
   .sc-el-tours-grid,
+  .sc-el-reviews-grid,
   .sc-el-gallery-grid,
   .sc-el-contacts-grid {
     grid-template-columns: 1fr !important;

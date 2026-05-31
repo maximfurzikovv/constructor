@@ -1,10 +1,16 @@
-﻿import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import './AdminLayout.css';
 import { api } from '../api/client';
 
-// Пункты бокового меню:
-const navItems = [
+type NavItem = {
+  to: string;
+  label: string;
+  end?: boolean;
+};
+
+// Пункты меню для экскурсовода:
+const guideNavItems: NavItem[] = [
   // Переход на дашборд:
   { to: '/admin', label: 'Дашборд', end: true },
   // Переход к экскурсиям:
@@ -17,12 +23,35 @@ const navItems = [
   { to: '/admin/publications', label: 'Публикации' },
 ];
 
+// Пункты меню для администратора:
+const adminNavItems: NavItem[] = [
+  // Переход к мониторингу:
+  { to: '/admin/system/monitoring', label: 'Мониторинг' },
+  // Переход к управлению ролями:
+  { to: '/admin/system/users', label: 'Роли и доступ' },
+  // Переход к модерации:
+  { to: '/admin/system/moderation', label: 'Модерация' },
+];
+
 // Общий layout:
 export default function AdminLayout() {
   // navigate:
   const navigate = useNavigate();
+  // Текущий адрес:
+  const location = useLocation();
   // Состояние панели:
   const [sidebarOpen, setSidebarOpen] = useState(() => !window.location.pathname.startsWith('/admin/showcase'));
+
+  // Данные пользователя из localStorage:
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const visibleNavItems = user.role === 'admin' ? adminNavItems : guideNavItems;
+
+  // Администратор открывает только системные разделы:
+  useEffect(() => {
+    if (user.role === 'admin' && !location.pathname.startsWith('/admin/system')) {
+      navigate('/admin/system/monitoring', { replace: true });
+    }
+  }, [location.pathname, navigate, user.role]);
 
   // Выход пользователя:
   const handleLogout = async () => {
@@ -32,17 +61,14 @@ export default function AdminLayout() {
     navigate('/login');
   };
 
-  // Данные пользователя из localStorage:
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-
   return (
-    <div className={`admin-layout ${!sidebarOpen ? 'sidebar-collapsed' : ''}`}>
+    <div className={`admin-layout ${user.role === 'admin' ? 'admin-theme' : ''} ${!sidebarOpen ? 'sidebar-collapsed' : ''}`}>
       {/* Если панель открыта, показываем меню: */}
       {sidebarOpen ? (
         <aside className="sidebar">
           {/* Шапка боковой панели: */}
           <div className="sidebar-header">
-            <h2>Конструктор</h2>
+            <h2>{user.role === 'admin' ? 'Администратор' : 'Конструктор'}</h2>
             {/* Кнопка скрытия меню: */}
             <button
               className="sidebar-collapse-btn"
@@ -50,12 +76,12 @@ export default function AdminLayout() {
               onClick={() => setSidebarOpen(false)}
               title="Скрыть меню"
             >
-                ⬅
+                ⟵
             </button>
           </div>
           <nav className="sidebar-nav">
             {/* Формируем пункты меню: */}
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -90,7 +116,7 @@ export default function AdminLayout() {
           onClick={() => setSidebarOpen(true)}
           title="Показать меню"
         >
-            ☰
+          ☰
         </button>
       )}
       {/* Основная область: */}

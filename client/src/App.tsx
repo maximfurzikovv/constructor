@@ -10,6 +10,7 @@ import RouteEditorPage from './pages/RouteEditorPage';
 import MediaLibraryPage from './pages/MediaLibraryPage';
 import SiteBuilderPage from './pages/SiteBuilderPage';
 import PublicationsPage from './pages/PublicationsPage';
+import SystemAdminPage from './pages/SystemAdminPage';
 import ShowcaseHomePage from './pages/ShowcaseHomePage';
 import ExcursionDetailPage from './pages/ExcursionDetailPage';
 import ExcursionPlayerPage from './pages/ExcursionPlayerPage';
@@ -43,6 +44,10 @@ export default function App() {
         <Route path="showcase" element={<SiteBuilderPage />} />
         {/* Раздел публикаций: */}
         <Route path="publications" element={<PublicationsPage />} />
+        {/* Системная панель администратора: */}
+        <Route path="system" element={<Navigate to="/admin/system/monitoring" replace />} />
+        {/* Раздел системной панели администратора: */}
+        <Route path="system/:section" element={<SystemAdminPage />} />
       </Route>
 
       {/* Showcase: */}

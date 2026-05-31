@@ -42,8 +42,8 @@ export default function DashboardPage() {
   // Формирует подсказки для автора:
   const actionItems = [
     {
-      title: 'Опубликовать готовые экскурсии',
-      text: !hasExcursions ? 'Создайте первую экскурсию, чтобы ее можно было опубликовать' : analytics.drafts.length ? `${analytics.drafts.length} экскурсии(-я) ждут публикации` : 'Все готовые экскурсии уже опубликованы',
+      title: 'Отправить экскурсии на модерацию',
+      text: !hasExcursions ? 'Создайте первую экскурсию, чтобы отправить ее на модерацию' : analytics.drafts.length ? `${analytics.drafts.length} экскурсии(-я) ждут модерации` : 'Все готовые экскурсии уже одобрены',
       link: '/admin/excursions',
       tone: !hasExcursions || analytics.drafts.length ? 'warn' : 'ok',
     },
@@ -75,7 +75,7 @@ export default function DashboardPage() {
         <div>
           <span className="dash-eyebrow">Личный кабинет</span>
           <h1>Рабочая область</h1>
-          <p>Здесь можно быстро перейти к созданию экскурсий, наполнению медиатеки, настройке сайта и публикации готовых материалов.</p>
+          <p>Здесь можно быстро перейти к нужным страницам, а также посмотреть готовность веб-приложения и экскурсий.</p>
         </div>
         <div className="hero-summary">
           <strong>{analytics.readyPercent}%</strong>
@@ -102,7 +102,7 @@ export default function DashboardPage() {
           <div className="card-title-row">
             <div>
               <h2>Что подготовить</h2>
-              <p>Какие материалы лучше заполнить перед показом экскурсии посетителям.</p>
+              <p>Какие материалы лучше заполнить перед показом посетителям.</p>
             </div>
           </div>
           <div className="todo-list">

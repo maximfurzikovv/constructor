@@ -30,8 +30,8 @@ export default function LoginPage() {
       localStorage.removeItem('token');
       // Сохраняем данные пользователя:
       localStorage.setItem('user', JSON.stringify(result.user));
-      // После входа открываем админку:
-      navigate('/admin');
+      // После входа открываем нужную рабочую область:
+      navigate(result.user?.role === 'admin' ? '/admin/system' : '/admin');
     } catch (err: any) {
       // Ошибка сервера:
       setError(err.message);
@@ -44,7 +44,7 @@ export default function LoginPage() {
       {/* Карточка формы входа: */}
       <Card className="auth-card">
         {/* Заголовок формы: */}
-        <h1>Конструктор экскурсий</h1>
+        <h1>Конструктор</h1>
         {/* Подзаголовок формы: */}
         <p className="auth-subtitle">Войдите в аккаунт</p>
         {/* Форма входа: */}

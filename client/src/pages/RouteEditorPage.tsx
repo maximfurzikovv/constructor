@@ -430,7 +430,7 @@ export default function RouteEditorPage() {
         prev?.route
           ? {
               ...prev,
-              status: publish ? 'published' : prev.status,
+              status: publish ? 'review' : prev.status,
               route: {
                 ...prev.route,
                 duration: routeDuration,
@@ -451,10 +451,10 @@ export default function RouteEditorPage() {
       }
 
       setHasChanges(false);
-      setStatusMsg(publish ? 'Экскурсия опубликована' : 'Сохранено');
+      setStatusMsg(publish ? 'Экскурсия отправлена на модерацию' : 'Сохранено');
       setTimeout(() => setStatusMsg(null), 3000);
     } catch {
-      setStatusMsg(publish ? 'Ошибка публикации' : 'Ошибка сохранения');
+      setStatusMsg(publish ? 'Ошибка отправки на модерацию' : 'Ошибка сохранения');
     } finally {
       setSaving(false);
     }
@@ -583,7 +583,7 @@ export default function RouteEditorPage() {
             {saving ? 'Сохранение...' : 'Сохранить'}
           </Button>
           <Button variant="secondary" size="sm" onClick={() => saveRoute(true)} disabled={saving} style={{ width: '100%' }}>
-            {saving ? 'Публикация...' : 'Опубликовать'}
+            {saving ? 'Отправка...' : 'На модерацию'}
           </Button>
         </div>
       </div>

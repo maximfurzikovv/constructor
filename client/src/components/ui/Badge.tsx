@@ -15,6 +15,7 @@ export default function Badge({ children, variant = 'default' }: BadgeProps) {
 // Словарь статусов экскурсии:
 const statusLabels: Record<string, { label: string; variant: BadgeProps['variant'] }> = {
   draft: { label: 'Черновик', variant: 'default' }, // Черновик
+  review: { label: 'На модерации', variant: 'warning' }, // Ожидает проверки
   published: { label: 'Опубликован', variant: 'success' }, // Опубликовано
   archived: { label: 'Архив', variant: 'warning' }, // Архив
 };

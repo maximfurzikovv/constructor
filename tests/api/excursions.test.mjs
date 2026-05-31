@@ -61,7 +61,7 @@ test('excursions: create, sync route points, publish, and read published snapsho
       method: 'PUT',
     });
 
-    assert.equal(published.status, 'published');
+    assert.equal(published.status, 'review');
     assert.equal(published.route.points.length, 2);
     assert.ok(published.route.duration > 12);
     assert.ok(published.route.distance > 0);
@@ -75,6 +75,7 @@ test('excursions: create, sync route points, publish, and read published snapsho
 
     const excursions = await apiRequest('/excursions');
     const listedExcursion = excursions.find((item) => item.id === createdExcursion.id);
+    assert.equal(listedExcursion.status, 'review');
     assert.equal(listedExcursion.route.duration, published.route.duration);
     assert.ok(listedExcursion.route.distance > 0);
   } finally {

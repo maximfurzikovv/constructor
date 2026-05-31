@@ -6,6 +6,7 @@ import excursionsRoutes from './routes/excursions'; // Маршруты рабо
 import pointsRoutes from './routes/points'; // Маршруты работы с точками
 import mediaRoutes from './routes/media'; // Маршруты работы с медиа
 import showcaseRoutes from './routes/showcase'; // Маршруты работы с созданным сайтом
+import adminRoutes from './routes/admin';
 import prisma, { withDbRetry } from './db';
 // Создание приложения:
 const app = express();
@@ -26,6 +27,7 @@ app.use('/api/excursions', excursionsRoutes); // Маршруты экскурс
 app.use('/api/points', pointsRoutes); // Маршруты точек
 app.use('/api/media', mediaRoutes); // Маршруты медиафайлов
 app.use('/api/showcase', showcaseRoutes); // Маршруты созданного сайта
+app.use('/api/admin', adminRoutes);
 // Проверка, что сервер работает:
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

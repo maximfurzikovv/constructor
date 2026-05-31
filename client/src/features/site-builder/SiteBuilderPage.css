@@ -151,7 +151,7 @@
 .rail-save-action,
 .rail-publish-action {
   width: 100%;
-  min-height: 46px;
+  min-height: 52px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   cursor: pointer;
@@ -160,8 +160,8 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px;
-  font-size: 12px;
+  padding: 7px 5px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1.15;
   text-align: center;
@@ -175,9 +175,8 @@
   display: block;
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .rail-save-action {
@@ -1520,7 +1519,8 @@
 }
 
 .b-el-gallery-grid,
-.b-el-tours-grid {
+.b-el-tours-grid,
+.b-el-reviews-grid {
   display: grid;
   gap: 12px;
 }
@@ -1533,6 +1533,7 @@
 }
 
 .b-el-tours h2,
+.b-el-reviews h2,
 .b-el-contacts h2 {
   font-size: 20px;
   margin-bottom: 14px;
@@ -1565,6 +1566,31 @@
   color: var(--color-text-muted);
 }
 
+.b-el-review-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--preview-radius, 8px);
+  background: #ffffff;
+}
+
+.b-el-review-rating {
+  color: #f59e0b;
+  letter-spacing: 1px;
+}
+
+.b-el-review-card p {
+  line-height: 1.55;
+  color: #334155;
+}
+
+.b-el-review-card small,
+.b-el-empty {
+  color: var(--color-text-muted);
+}
+
 .b-el-contacts p {
   margin: 0 0 6px;
   color: #475569;
@@ -1579,8 +1605,10 @@
 }
 
 .viewport-mobile .b-el-tours-grid,
+.viewport-mobile .b-el-reviews-grid,
 .viewport-mobile .b-el-gallery-grid,
-.viewport-tablet .b-el-tours-grid {
+.viewport-tablet .b-el-tours-grid,
+.viewport-tablet .b-el-reviews-grid {
   grid-template-columns: 1fr !important;
 }
 

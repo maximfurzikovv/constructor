@@ -6,7 +6,7 @@ export class ApiValidationError extends Error {
 }
 
 // Разрешенные состояния экскурсии:
-const excursionStatusSchema = z.enum(['draft', 'published', 'archived']);
+const excursionStatusSchema = z.enum(['draft', 'review', 'published', 'archived']);
 
 // Разрешенные способы передвижения:
 const transportSchema = z.enum(['walk', 'bus', 'metro', 'car', 'bike']);

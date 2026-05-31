@@ -4,11 +4,11 @@ export interface User {
   email: string;
   name: string;
   avatar?: string; // Ссылка на аватар
-  role: 'guide'; // Роль автора
+  role: 'guide' | 'admin'; // Роль пользователя
   createdAt: string;
 }
 
-export type ExcursionStatus = 'draft' | 'published' | 'archived'; // Статус экскурсии
+export type ExcursionStatus = 'draft' | 'review' | 'published' | 'archived'; // Статус экскурсии
 export type TransportMode = 'walk' | 'bus' | 'metro' | 'car' | 'bike'; // Тип транспорта
 // Экскурсии:
 export interface Excursion {
@@ -19,11 +19,34 @@ export interface Excursion {
   status: ExcursionStatus;
   city: string;
   coverImage?: string; //Обложка
+  publishedSnapshot?: string;
+  moderationComment?: string;
+  reviews?: Review[];
   route: Route; // Маршрут
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ExcursionPublication {
+  id: string;
+  excursionId: string;
+  snapshotJson: string;
+  status: ExcursionStatus;
+  moderationComment?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+}
 // Маршрут экскурсии:
+export interface Review {
+  id: string;
+  excursionId: string;
+  authorName: string;
+  rating: number;
+  text: string;
+  published: boolean;
+  createdAt: string;
+}
+
 export interface Route {
   id: string;
   excursionId: string;
@@ -66,8 +89,10 @@ export interface ShowcaseSite {
   description: string;
   theme: 'light' | 'dark';
   heroImage?: string; // Главное изображение сайта
-  tours: string[]; // ID экскурсий
   published: boolean;
+  constructorJson?: string;
+  publishedJson?: string;
+  moderationComment?: string | null;
   createdAt: string;
 }
 

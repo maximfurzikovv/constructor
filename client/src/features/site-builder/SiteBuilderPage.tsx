@@ -31,6 +31,7 @@ type ElementType =
   | 'map'
   | 'embed'
   | 'tours'
+  | 'reviews'
   | 'contacts';
 
 // Общие стили секции, колонки или элемента:
@@ -169,6 +170,7 @@ const elementLabels: Record<ElementType, { label: string; icon: string }> = {
   map: { label: 'Карта', icon: '🗺️' },
   embed: { label: 'Код', icon: '💻' },
   tours: { label: 'Экскурсии', icon: '🧭' },
+  reviews: { label: 'Отзывы', icon: '★' },
   contacts: { label: 'Контакты', icon: '📨' },
 };
 
@@ -177,7 +179,7 @@ const elementGroups: { title: string; items: ElementType[] }[] = [
   { title: 'Базовые', items: ['heading', 'text', 'button', 'backButton', 'divider', 'spacer', 'box'] },
   { title: 'Медиа', items: ['image', 'gallery', 'video'] },
   { title: 'Структура', items: ['menu', 'list', 'embed'] },
-  { title: 'Бизнес', items: ['tours', 'contacts', 'form', 'map', 'social'] },
+  { title: 'Бизнес', items: ['tours', 'reviews', 'contacts', 'form', 'map', 'social'] },
 ];
 
 // Быстрый список поддерживаемых элементов:
@@ -211,7 +213,7 @@ function templateLabel(template: string) {
 function templateDescription(template: string) {
   const descriptions: Record<string, string> = {
     'hero-split': 'Заголовок, текст, кнопка и крупное изображение',
-    'hero-center': 'Центральный первый экран для промо',
+    'hero-center': 'Центральный первый экран',
     'about-photo': 'Фото, описание и список преимуществ',
     features: 'Три карточки преимуществ или фактов',
     'contacts-strip': 'Короткая контактная полоса',
@@ -306,12 +308,6 @@ function normalizeBuilderChrome(root: HTMLElement | null, activePage: BuilderPag
   const title = root.querySelector<HTMLElement>('.constructor-left-header h3');
   if (title) title.textContent = 'Конструктор сайта';
 
-  const panelToggle = root.querySelector<HTMLButtonElement>('.panel-toggle-btn');
-  if (panelToggle) {
-    panelToggle.textContent = '<';
-    panelToggle.title = 'Скрыть панель конструктора';
-  }
-
   root.querySelectorAll<HTMLElement>('.block-icon').forEach((icon, index) => {
     icon.textContent = index === 0 ? 'H' : '::';
   });
@@ -353,13 +349,6 @@ function normalizeBuilderChrome(root: HTMLElement | null, activePage: BuilderPag
     historyButtons[1].setAttribute('aria-label', 'Вернуть');
   }
 
-  const workspaceButtons = root.querySelectorAll<HTMLButtonElement>('.workspace-panel-btn');
-  workspaceButtons.forEach((button) => {
-    const inToolbar = button.closest('.preview-toolbar');
-    if (!inToolbar) return;
-    button.textContent = rightPanelOpen ? '>' : '<';
-    button.title = rightPanelOpen ? 'Скрыть свойства' : 'Показать свойства';
-  });
 }
 // Генерирует уникальный id для страниц, секций и элементов:
 function uid(prefix: string) {
@@ -532,6 +521,12 @@ function createElement(type: ElementType): BuilderElement {
       data: { heading: 'Доступные экскурсии', columns: 2, selectedTourIds: [] },
       style: { padding: 0, margin: 8, width: 100 },
     },
+    reviews: {
+      id: uid('element'),
+      type,
+      data: { heading: 'Отзывы участников', columns: 2, excursionId: 'all', selectedReviewIds: [] },
+      style: { padding: 0, margin: 8, width: 100 },
+    },
     contacts: {
       id: uid('element'),
       type,
@@ -594,7 +589,7 @@ function createSectionTemplate(template: string): BuilderSection {
     const section = createSection('3');
     section.columns.forEach((column, index) => {
       column.elements = [
-        { ...createElement('box'), data: { text: ['Геолокация', 'Мультимедиа', 'Публикация'][index] }, style: { padding: 22, margin: 8, radius: 14, background: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', width: 100 } },
+        { ...createElement('box'), data: { text: ['Геолокация', 'Мультимедиа', 'Модерация'][index] }, style: { padding: 22, margin: 8, radius: 14, background: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', width: 100 } },
       ];
     });
     return section;
@@ -715,6 +710,16 @@ function getFontFamily(font: string) {
   if (font === 'serif') return 'Georgia, serif';
   if (font === 'mono') return 'monospace';
   return 'inherit';
+}
+
+function getAvailableReviews(tours: any[], data: Record<string, any>) {
+  const selectedTourId = data.excursionId || 'all';
+  const selectedReviewIds: string[] = data.selectedReviewIds || [];
+  const reviews = tours
+    .filter((tour) => tour.status === 'published' && (selectedTourId === 'all' || tour.id === selectedTourId))
+    .flatMap((tour) => (tour.reviews || []).map((review: any) => ({ ...review, tourTitle: tour.title })))
+    .filter((review) => review.published !== false);
+  return selectedReviewIds.length > 0 ? reviews.filter((review) => selectedReviewIds.includes(review.id)) : reviews;
 }
 
 export default function SiteBuilderPage() {
@@ -1283,9 +1288,9 @@ export default function SiteBuilderPage() {
     setSaving(false);
   };
 
-  // Публикует сайт и делает его доступным по slug:
+  // Отправляет сайт на модерацию администратору:
   const handlePublish = async () => {
-    // Останавливаем публикацию с занятым адресом:
+    // Останавливаем отправку с занятым адресом:
     if (slugCheck === 'taken') {
       setStatusMsg('Этот адрес сайта уже занят');
       return;
@@ -1294,10 +1299,10 @@ export default function SiteBuilderPage() {
     setStatusMsg(null);
     try {
       await api.saveConstructor(savePayload);
-      setStatusMsg('Сайт опубликован');
+      setStatusMsg('Сайт отправлен на модерацию');
       setTimeout(() => setStatusMsg(null), 3000);
     } catch (error: any) {
-      setStatusMsg(error.message || 'Ошибка публикации'); // Сообщение сервера
+      setStatusMsg(error.message || 'Ошибка отправки на модерацию'); // Сообщение сервера
     }
     setPublishing(false);
   };
@@ -1313,7 +1318,7 @@ export default function SiteBuilderPage() {
           <h3>{'\u041a\u043e\u043d\u0441\u0442\u0440\u0443\u043a\u0442\u043e\u0440 \u0441\u0430\u0439\u0442\u0430'}</h3>
           <div className="panel-header-actions">
             <button className="panel-toggle-btn" type="button" onClick={() => setLeftPanelOpen(false)} title="Скрыть панель конструктора">
-              {'<'}
+              {'⟵'}
             </button>
           </div>
         </div>
@@ -1336,8 +1341,8 @@ export default function SiteBuilderPage() {
             <button className="rail-save-action" type="button" onClick={handleSave} disabled={saving} title="Сохранить черновик">
               <span>{saving ? 'Сохранение' : 'Сохранить'}</span>
             </button>
-            <button className="rail-publish-action" type="button" onClick={handlePublish} disabled={publishing} title="Опубликовать сайт">
-              <span>{publishing ? 'Публикация' : 'Опубликовать'}</span>
+            <button className="rail-publish-action" type="button" onClick={handlePublish} disabled={publishing} title="Отправить сайт на модерацию">
+              <span>{publishing ? 'Отправка' : 'На модерацию'}</span>
             </button>
           </div>
         </div>
@@ -1363,7 +1368,7 @@ export default function SiteBuilderPage() {
                 >
                   <span className="block-icon">::</span>
                   <span className="block-label">{`\u0421\u0435\u043a\u0446\u0438\u044f ${index + 1} - ${sectionLayouts[section.layout].label}`}</span>
-                  <button className="block-action-btn" title="Дублировать секцию" onClick={(event) => { event.stopPropagation(); duplicateSection(section.id); }}>⧉</button>
+                  <button className="block-action-btn" title="Дублировать секцию" onClick={(event) => { event.stopPropagation(); duplicateSection(section.id); }}>📋</button>
                   <button className="block-action-btn danger" onClick={(event) => { event.stopPropagation(); deleteSection(section.id); }}>x</button>
                 </div>
               ))}
@@ -1464,7 +1469,7 @@ export default function SiteBuilderPage() {
         <div className="preview-toolbar">
           {!leftPanelOpen && (
             <button className="workspace-panel-btn" type="button" onClick={() => setLeftPanelOpen(true)} title="Показать панель конструктора">
-              {'<'}
+              {'⟶'}
             </button>
           )}
           <div className="preview-actions">
@@ -1534,14 +1539,16 @@ export default function SiteBuilderPage() {
             >
               Перейти на сайт
             </a>
-            <button
-              className="workspace-panel-btn"
-              type="button"
-              onClick={() => setRightPanelOpen((open) => !open)}
-              title={rightPanelOpen ? 'Скрыть свойства' : 'Показать свойства'}
-            >
-              {rightPanelOpen ? '>' : '<'}
-            </button>
+            {!rightPanelOpen && (
+              <button
+                className="workspace-panel-btn"
+                type="button"
+                onClick={() => setRightPanelOpen(true)}
+                title="Показать свойства"
+              >
+                {'⟵'}
+              </button>
+            )}
           </div>
         </div>        {statusMsg && <div className="builder-toast">{statusMsg}</div>}
 
@@ -1632,7 +1639,7 @@ export default function SiteBuilderPage() {
       <div className="constructor-right">
         <div className="props-collapse-row">
           <button className="panel-toggle-btn" type="button" onClick={() => setRightPanelOpen(false)} title="Скрыть панель свойств">
-            {'<'}
+            {'⟶'}
           </button>
         </div>
         <PropertiesPanel
@@ -1793,6 +1800,26 @@ function ElementPreview({ element, tours, slug, primary }: { element: BuilderEle
             </a>
           ))}
         </div>
+      </div>
+    );
+  }
+  if (element.type === 'reviews') {
+    const shown = getAvailableReviews(tours, element.data);
+    return (
+      <div className="b-el-reviews" style={css}>
+        <h2>{element.data.heading}</h2>
+        {shown.length === 0 ? <p className="b-el-empty">Пока нет отзывов для выбранных экскурсий</p> : (
+          <div className="b-el-reviews-grid" style={{ gridTemplateColumns: `repeat(${element.data.columns || 2}, minmax(0, 1fr))` }}>
+            {shown.map((review) => (
+              <article key={review.id} className="b-el-review-card">
+                <div className="b-el-review-rating">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</div>
+                <p>{review.text}</p>
+                <strong>{review.authorName}</strong>
+                <small>{review.tourTitle}</small>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -2192,6 +2219,62 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
   if (element.type === 'embed') {
     return <Textarea label="Код / HTML" value={element.data.code} onChange={(event) => updateData(element.id, 'code', event.target.value)} style={{ minHeight: 120 }} />;
   }
+  if (element.type === 'reviews') {
+    const publishedTours = tours.filter((tour) => tour.status === 'published');
+    const selectedTourId = element.data.excursionId || 'all';
+    const availableReviews = publishedTours
+      .filter((tour) => selectedTourId === 'all' || tour.id === selectedTourId)
+      .flatMap((tour) => (tour.reviews || []).map((review: any) => ({ ...review, tourTitle: tour.title })))
+      .filter((review) => review.published !== false);
+    const ids: string[] = element.data.selectedReviewIds || [];
+    return (
+      <>
+        <Input label="Заголовок" value={element.data.heading} onChange={(event) => updateData(element.id, 'heading', event.target.value)} />
+        <NumberField label="Колонок" value={element.data.columns || 2} min={1} max={3} onChange={(columns) => updateData(element.id, 'columns', columns)} />
+        <div className="theme-field">
+          <label>Экскурсия</label>
+          <select
+            className="theme-select"
+            value={selectedTourId}
+            onChange={(event) => {
+              updateData(element.id, 'excursionId', event.target.value);
+              updateData(element.id, 'selectedReviewIds', []);
+            }}
+          >
+            <option value="all">Все опубликованные</option>
+            {publishedTours.map((tour) => <option key={tour.id} value={tour.id}>{tour.title}</option>)}
+          </select>
+        </div>
+        <div className="theme-field">
+          <label>Отзывы</label>
+          <select
+            className="theme-select"
+            value={ids.length === 0 ? 'all' : 'selected'}
+            onChange={(event) => updateData(element.id, 'selectedReviewIds', event.target.value === 'all' ? [] : availableReviews.slice(0, 3).map((review) => review.id))}
+          >
+            <option value="all">Все подходящие</option>
+            <option value="selected">Выбрать вручную</option>
+          </select>
+        </div>
+        {ids.length > 0 && (
+          <div className="tour-select-list">
+            <select
+              className="tour-multi-select"
+              multiple
+              value={ids}
+              onChange={(event) => updateData(element.id, 'selectedReviewIds', Array.from(event.currentTarget.selectedOptions).map((option) => option.value))}
+            >
+              {availableReviews.map((review) => (
+                <option key={review.id} value={review.id}>{review.authorName}: {review.text.slice(0, 52)}</option>
+              ))}
+            </select>
+            <small className="tour-select-hint">Выбрано: {ids.length}. Для выбора нескольких используйте Ctrl или Shift.</small>
+          </div>
+        )}
+        {availableReviews.length === 0 && <p className="tour-select-hint">Отзывы появятся после того, как посетители оставят их на страницах экскурсий.</p>}
+      </>
+    );
+  }
   if (element.type === 'tours') {
     const ids: string[] = element.data.selectedTourIds || [];
     const publishedTours = tours.filter((tour) => tour.status === 'published');
@@ -2225,7 +2308,7 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
             <small className="tour-select-hint">Выбрано: {ids.length}. Для выбора нескольких используйте Ctrl или Shift.</small>
           </div>
         )}
-        {ids.length > 0 && publishedTours.length === 0 && <p className="tour-select-hint">Сначала опубликуйте экскурсии.</p>}
+        {ids.length > 0 && publishedTours.length === 0 && <p className="tour-select-hint">Сначала отправьте экскурсии на модерацию и дождитесь одобрения.</p>}
       </>
     );
   }

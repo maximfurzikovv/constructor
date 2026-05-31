@@ -28,9 +28,36 @@ function fallbackConstructor(original) {
   };
 }
 
+async function loginAdmin() {
+  const adminLogin = await apiRequestRaw('/auth/login', {
+    method: 'POST',
+    skipAuth: true,
+    body: JSON.stringify({ email: 'admin@constructor.local', password: 'Admin4219!' }),
+  });
+  assert.equal(adminLogin.response.ok, true);
+  return adminLogin.body.data.token;
+}
+
+async function approveSiteBySlug(adminToken, slug) {
+  const overview = await apiRequestRaw('/admin/overview', {
+    skipAuth: true,
+    headers: { Authorization: `Bearer ${adminToken}` },
+  });
+  assert.equal(overview.response.ok, true);
+  const site = overview.body.data.sites.find((item) => item.slug === slug);
+  assert.ok(site);
+  const approved = await apiRequestRaw(`/admin/sites/${site.id}/published`, {
+    method: 'PUT',
+    skipAuth: true,
+    headers: { Authorization: `Bearer ${adminToken}` },
+    body: JSON.stringify({ published: true }),
+  });
+  assert.equal(approved.response.ok, true);
+}
+
 test('showcase: save draft, publish constructor data, and open public site by slug', async () => {
-  const original = await apiRequest('/showcase/maxim-furzikov');
-  const originalPayload = original.constructorData || fallbackConstructor(original);
+  const originalPayload = await apiRequest('/showcase/constructor/data');
+  const adminToken = await loginAdmin();
 
   const testSlug = `api-test-${Date.now()}`;
   const payload = {
@@ -64,6 +91,12 @@ test('showcase: save draft, publish constructor data, and open public site by sl
     });
     assert.equal(publishResult.success, true);
     assert.equal(publishResult.slug, testSlug);
+    assert.equal(publishResult.status, 'review');
+
+    const hiddenBeforeApproval = await apiRequestRaw(`/showcase/${testSlug}`, { skipAuth: true });
+    assert.equal(hiddenBeforeApproval.response.status, 404);
+
+    await approveSiteBySlug(adminToken, testSlug);
 
     const publicSite = await apiRequest(`/showcase/${testSlug}`);
     assert.equal(publicSite.slug, testSlug);
@@ -87,9 +120,10 @@ test('showcase: save draft, publish constructor data, and open public site by sl
       method: 'PUT',
       body: JSON.stringify({
         ...originalPayload,
-        siteSlug: originalPayload.siteSlug || original.slug || 'maxim-furzikov',
+        siteSlug: originalPayload.siteSlug || 'maxim-furzikov',
       }),
     });
+    await approveSiteBySlug(adminToken, originalPayload.siteSlug || 'maxim-furzikov');
   }
 });
 
@@ -111,6 +145,20 @@ test('showcase: published excursion cover is visible in public site data', async
       body: JSON.stringify({ coverImage }),
     });
     await apiRequest(`/excursions/${excursion.id}/publish`, { method: 'PUT' });
+    const adminLogin = await apiRequestRaw('/auth/login', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({ email: 'admin@constructor.local', password: 'Admin4219!' }),
+    });
+    assert.equal(adminLogin.response.ok, true);
+    const adminToken = adminLogin.body.data.token;
+    const approveResult = await apiRequestRaw(`/admin/excursions/${excursion.id}/status`, {
+      method: 'PUT',
+      skipAuth: true,
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ status: 'published' }),
+    });
+    assert.equal(approveResult.response.ok, true);
 
     // Публичный сайт получает опубликованную обложку:
     const publicSite = await apiRequest(`/showcase/${slug}`);

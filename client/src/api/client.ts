@@ -106,6 +106,8 @@ export const api = {
   // Получение одной экскурсии:
   getExcursion: (id: string, published?: boolean) =>
     request(`/excursions/${id}${published ? '?published=true' : ''}`),
+  getExcursionPublications: (id: string) =>
+    request(`/excursions/${id}/publications`),
   // Получение статистики:
   getStats: () => request('/excursions/stats'),
   // Создание новой экскурсии:
@@ -117,6 +119,10 @@ export const api = {
   // Публикация экскурсии:
   publishExcursion: (id: string) =>
     request(`/excursions/${id}/publish`, { method: 'PUT' }),
+  getReviews: (excursionId: string) =>
+    request(`/excursions/${excursionId}/reviews`),
+  createReview: (excursionId: string, data: { authorName: string; rating: number; text: string }) =>
+    request(`/excursions/${excursionId}/reviews`, { method: 'POST', body: JSON.stringify(data) }),
   // Удаление экскурсии:
   deleteExcursion: (id: string) =>
     request(`/excursions/${id}`, { method: 'DELETE' }),
@@ -203,4 +209,12 @@ export const api = {
   // Проверка свободного адреса сайта:
   checkSiteSlug: (slug: string) =>
     request(`/showcase/constructor/slug-availability?slug=${encodeURIComponent(slug)}`),
+
+  getAdminOverview: () => request('/admin/overview'),
+  updateAdminUserRole: (id: string, role: 'guide' | 'admin') =>
+    request(`/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+  updateAdminExcursionStatus: (id: string, status: 'draft' | 'review' | 'published' | 'archived', moderationComment?: string) =>
+    request(`/admin/excursions/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, moderationComment }) }),
+  updateAdminSitePublished: (id: string, published: boolean, moderationComment?: string) =>
+    request(`/admin/sites/${id}/published`, { method: 'PUT', body: JSON.stringify({ published, moderationComment }) }),
 };
