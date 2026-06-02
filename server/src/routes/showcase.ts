@@ -76,7 +76,7 @@ router.get('/constructor/data', requireAuth, requireRole('guide'), async (req: A
     siteSlug: site.slug,
     sitePublished: site.published,
     siteModerationComment: site.moderationComment,
-    siteModerationStatus: site.published ? 'published' : site.moderationComment ? 'archived' : site.constructorJson ? 'review' : 'draft',
+    siteModerationStatus: site.status,
   };
   // Если JSON конструктора еще не создан, возвращаем только личный slug:
   if (!site.constructorJson) {
@@ -146,16 +146,26 @@ router.put('/constructor', requireAuth, requireRole('guide'), async (req: AuthRe
   const json = JSON.stringify(payload);
 
   try {
-    // При публикации черновик и опубликованная версия становятся одинаковыми:
-    await prisma.showcaseSite.update({
-      where: { id: site.id },
-      data: {
-        constructorJson: json,
-        published: false,
-        moderationComment: null,
-        slug,
-      },
-    });
+    // Сайт становится заявкой на модерацию, а публичная версия появится только после решения администратора:
+    await prisma.$transaction([
+      prisma.showcaseSite.update({
+        where: { id: site.id },
+        data: {
+          constructorJson: json,
+          published: false,
+          status: 'review',
+          moderationComment: null,
+          slug,
+        },
+      }),
+      prisma.showcaseSitePublication.create({
+        data: {
+          siteId: site.id,
+          snapshotJson: json,
+          status: 'review',
+        },
+      }),
+    ]);
   } catch (error: any) {
     // Уникальный индекс защищает от одновременного выбора slug:
     if (error?.code === 'P2002') return res.status(409).json({ error: 'Этот адрес сайта уже занят' });
@@ -164,6 +174,37 @@ router.put('/constructor', requireAuth, requireRole('guide'), async (req: AuthRe
 
   // Клиент получает slug, но публичным сайт станет только после решения администратора:
   res.json({ data: { success: true, slug, status: 'review' } });
+});
+
+// Возвращает историю заявок сайта-витрины:
+router.get('/constructor/publications', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
+  const site = await prisma.showcaseSite.findFirst({
+    where: { authorId: req.user!.id },
+    select: { id: true },
+  });
+  if (!site) return res.status(404).json({ error: 'Site not found' });
+
+  const publications = await prisma.showcaseSitePublication.findMany({
+    where: { siteId: site.id },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      siteId: true,
+      snapshotJson: true,
+      status: true,
+      moderationComment: true,
+      createdAt: true,
+      reviewedAt: true,
+    },
+  });
+
+  res.json({
+    data: publications.map((item) => ({
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+      reviewedAt: item.reviewedAt ? item.reviewedAt.toISOString() : null,
+    })),
+  });
 });
 
 // Сохраняет черновик конструктора без публикации:
@@ -193,11 +234,13 @@ router.put('/constructor/draft', requireAuth, requireRole('guide'), async (req: 
 
   try {
     // publishedJson не меняется, поэтому публичный сайт остается прежним:
+    const nextStatus = site.published ? site.status : 'draft';
     await prisma.showcaseSite.update({
       where: { id: site.id },
       data: {
         constructorJson: JSON.stringify(payload),
         slug,
+        status: nextStatus,
       },
     });
   } catch (error: any) {

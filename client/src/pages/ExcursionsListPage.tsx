@@ -24,6 +24,10 @@ export default function ExcursionsListPage() {
   const [newCity, setNewCity] = useState('');
   // Описание новой экскурсии:
   const [newDesc, setNewDesc] = useState('');
+  // ID удаляемой экскурсии:
+  const [deletingId, setDeletingId] = useState('');
+  // Ошибка операции:
+  const [error, setError] = useState('');
 
   // При открытии страницы список экскурсий:
   useEffect(() => {
@@ -42,6 +46,23 @@ export default function ExcursionsListPage() {
     navigate(`/admin/excursions/${exc.id}/edit`); // Сразу открываем редактор
   };
 
+  // Удаление экскурсии:
+  const handleDelete = async (exc: Excursion) => {
+    const confirmed = window.confirm(`Удалить экскурсию "${exc.title}"? Это действие нельзя отменить.`);
+    if (!confirmed) return;
+
+    setError('');
+    setDeletingId(exc.id);
+    try {
+      await api.deleteExcursion(exc.id);
+      setExcursions((items) => items.filter((item) => item.id !== exc.id));
+    } catch (err: any) {
+      setError(err?.message || 'Не удалось удалить экскурсию');
+    } finally {
+      setDeletingId('');
+    }
+  };
+
   return (
     // Контейнер страницы экскурсий:
     <div className="tours-page">
@@ -52,9 +73,11 @@ export default function ExcursionsListPage() {
         <Button onClick={() => setShowCreate(true)}>+ Новая экскурсия</Button>
       </div>
 
+      {error && <div className="tours-error">{error}</div>}
+
       {/* Сетка карточек экскурсий: */}
       <div className="tours-grid">
-        {excursions.map((exc: any) => (
+        {excursions.map((exc) => (
           <Card key={exc.id} className="tour-card">
             {/* Обложка экскурсии: */}
             {exc.coverImage ? (
@@ -88,6 +111,14 @@ export default function ExcursionsListPage() {
                   Плеер
                 </Button>
               </Link>
+              <Button
+                size="sm"
+                variant="danger"
+                disabled={deletingId === exc.id}
+                onClick={() => handleDelete(exc)}
+              >
+                {deletingId === exc.id ? 'Удаление...' : 'Удалить'}
+              </Button>
             </div>
           </Card>
         ))}

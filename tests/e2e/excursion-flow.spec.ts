@@ -26,14 +26,15 @@ test('excursion flow: author creates route, publishes it and opens player', asyn
       data: {
         points: [
           { title: 'Point 1', description: 'Start point', lat: 59.934, lng: 30.306, duration: 3, radius: 50 },
-          { title: 'Point 2', description: 'Finish point', lat: 59.936, lng: 30.31, duration: 4, radius: 50 },
+          { title: 'Point 2', description: 'Middle point', lat: 59.935, lng: 30.308, duration: 3, radius: 50 },
+          { title: 'Point 3', description: 'Finish point', lat: 59.936, lng: 30.31, duration: 4, radius: 50 },
         ],
       },
     });
     // Точки должны сохраниться:
     expect(pointsResponse.ok()).toBeTruthy();
     // Публикуем экскурсию:
-    const publishResponse = await request.put(`${apiBaseUrl}/api/excursions/${excursion.id}/publish`, {
+    const publishResponse = await request.put(`${apiBaseUrl}/api/excursions/${excursion.id}/review`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     // Публикация должна пройти:

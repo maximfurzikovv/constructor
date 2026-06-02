@@ -112,6 +112,7 @@ router.post('/register', async (req, res) => {
             slug: `site-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             title: normalizedName,
             description: '',
+            status: 'draft',
             published: false,
           },
         },

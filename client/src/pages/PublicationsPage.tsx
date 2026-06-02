@@ -19,6 +19,14 @@ type SitePublicationState = {
   siteModerationStatus?: 'draft' | 'review' | 'published' | 'archived';
 };
 
+type SitePublication = {
+  id: string;
+  status: 'draft' | 'review' | 'published' | 'archived';
+  moderationComment?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+};
+
 function getSiteStatusLabel(site?: SitePublicationState | null) {
   if (!site?.siteSlug) return 'Веб-приложение не создано';
   if (site.sitePublished) return 'Одобрено';
@@ -39,6 +47,8 @@ function getSiteStatusClass(site?: SitePublicationState | null) {
 export default function PublicationsPage() {
   const [excursions, setExcursions] = useState<Excursion[]>([]); // Список экскурсий
   const [site, setSite] = useState<SitePublicationState | null>(null);
+  const [siteHistoryOpen, setSiteHistoryOpen] = useState(false);
+  const [siteHistory, setSiteHistory] = useState<SitePublication[]>([]);
   const [historyOpen, setHistoryOpen] = useState<string | null>(null);
   const [history, setHistory] = useState<Record<string, ExcursionPublication[]>>({});
 
@@ -75,6 +85,18 @@ export default function PublicationsPage() {
     }
   };
 
+  const toggleSiteHistory = async () => {
+    if (siteHistoryOpen) {
+      setSiteHistoryOpen(false);
+      return;
+    }
+    setSiteHistoryOpen(true);
+    if (!siteHistory.length) {
+      const items = await api.getSitePublications() as SitePublication[];
+      setSiteHistory(items);
+    }
+  };
+
   return (
     // Контейнер страницы публикаций:
     <div className="publications-page">
@@ -97,6 +119,9 @@ export default function PublicationsPage() {
             )}
           </div>
           <div className="pub-actions">
+            <Button variant="secondary" size="sm" onClick={toggleSiteHistory}>
+              {siteHistoryOpen ? 'Скрыть историю' : 'История'}
+            </Button>
             {site?.sitePublished && site.siteSlug && (
               <a className="pub-link" href={`/s/${site.siteSlug}`} target="_blank" rel="noreferrer">
                 Открыть сайт
@@ -107,6 +132,20 @@ export default function PublicationsPage() {
             </a>
           </div>
         </div>
+        {siteHistoryOpen && (
+          <div className="pub-history">
+            {siteHistory.length === 0 ? (
+              <p>Заявок на модерацию сайта пока нет</p>
+            ) : siteHistory.map((item) => (
+              <div className="pub-history-item" key={item.id}>
+                <StatusBadge status={item.status} />
+                <span>Создана: {formatDate(item.createdAt)}</span>
+                {item.reviewedAt && <span>Решение: {formatDate(item.reviewedAt)}</span>}
+                {item.moderationComment && <strong>{item.moderationComment}</strong>}
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Список материалов: */}

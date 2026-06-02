@@ -90,11 +90,12 @@ export async function createPublishedExcursion() {
   // Забираем тело ответа:
   const excursion = (await excursionResponse.json()).data;
 
-  // Добавляем две точки маршрута:
+  // Добавляем три точки маршрута:
   const pointsResponse = await api.put(`/api/points/route/${excursion.route.id}/sync`, {
     data: {
       points: [
         { title: 'Start', description: 'First point with a deliberately long description for checking the mobile full-text dialog. This content should be opened separately without stretching the route panel on a small screen.', lat: 59.934, lng: 30.306, duration: 2, radius: 50 },
+        { title: 'Middle', description: 'Middle point', lat: 59.935, lng: 30.308, duration: 2, radius: 50 },
         { title: 'Finish', description: 'Second point', lat: 59.936, lng: 30.31, duration: 2, radius: 50 },
       ],
     },
@@ -102,7 +103,7 @@ export async function createPublishedExcursion() {
   expect(pointsResponse.ok()).toBeTruthy();
 
   // Публикуем экскурсию для публичного плеера:
-  const publishResponse = await api.put(`/api/excursions/${excursion.id}/publish`);
+  const publishResponse = await api.put(`/api/excursions/${excursion.id}/review`);
   expect(publishResponse.ok()).toBeTruthy();
   await approveExcursion(excursion.id);
   await api.dispose();

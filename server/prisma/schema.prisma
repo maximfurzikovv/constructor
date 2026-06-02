@@ -119,6 +119,7 @@ model ShowcaseSite {
   description     String   @default("")
   theme           String   @default("light")
   heroImage       String?
+  status          String   @default("draft")
   published       Boolean  @default(false)
   constructorJson String?
   publishedJson   String?
@@ -126,4 +127,20 @@ model ShowcaseSite {
   createdAt       DateTime @default(now())
 
   author User @relation(fields: [authorId], references: [id])
+  publications ShowcaseSitePublication[]
+}
+
+model ShowcaseSitePublication {
+  id                String   @id @default(uuid())
+  siteId            String
+  snapshotJson      String
+  status            String   @default("review")
+  moderationComment String?
+  createdAt         DateTime @default(now())
+  reviewedAt        DateTime?
+
+  site ShowcaseSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@index([status])
 }

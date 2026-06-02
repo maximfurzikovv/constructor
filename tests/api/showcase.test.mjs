@@ -150,6 +150,16 @@ test('showcase: published excursion cover is visible in public site data', async
       method: 'PUT',
       body: JSON.stringify({ coverImage }),
     });
+    await apiRequest(`/points/route/${excursion.route.id}/sync`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        points: [
+          { title: 'Start', description: 'Start point', lat: 59.934, lng: 30.306, duration: 3, radius: 50 },
+          { title: 'Middle', description: 'Middle point', lat: 59.935, lng: 30.308, duration: 3, radius: 50 },
+          { title: 'Finish', description: 'Finish point', lat: 59.936, lng: 30.31, duration: 4, radius: 50 },
+        ],
+      }),
+    });
     await apiRequest(`/excursions/${excursion.id}/publish`, { method: 'PUT' });
     const adminLogin = await apiRequestRaw('/auth/login', {
       method: 'POST',

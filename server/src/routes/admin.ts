@@ -90,6 +90,7 @@ router.get('/overview', requireAuth, requireRole('admin'), async (_req: AuthRequ
         id: true,
         slug: true,
         title: true,
+        status: true,
         published: true,
         moderationComment: true,
         createdAt: true,
@@ -103,8 +104,8 @@ router.get('/overview', requireAuth, requireRole('admin'), async (_req: AuthRequ
   const publishedExcursions = excursions.filter((item) => item.status === 'published').length;
   const reviewExcursions = excursions.filter((item) => item.status === 'review').length;
   const rejectedExcursions = excursions.filter((item) => item.status === 'archived').length;
-  const rejectedSites = sites.filter((item) => item.published === false && item.moderationComment !== null).length;
-  const pendingSites = sites.filter((item) => item.published === false && item.moderationComment === null).length;
+  const rejectedSites = sites.filter((item) => item.status === 'archived').length;
+  const pendingSites = sites.filter((item) => item.status === 'review').length;
   const checked = publishedExcursions + rejectedExcursions;
   const unchecked = excursions.length - checked;
 
@@ -126,7 +127,7 @@ router.get('/overview', requireAuth, requireRole('admin'), async (_req: AuthRequ
         archivedExcursions: rejectedExcursions,
         media: mediaCount,
         sites: sites.length,
-        publishedSites: sites.filter((item) => item.published).length,
+        publishedSites: sites.filter((item) => item.status === 'published').length,
         pendingSites,
         rejectedSites,
         checked,
@@ -231,6 +232,7 @@ router.get('/overview', requireAuth, requireRole('admin'), async (_req: AuthRequ
         id: site.id,
         slug: site.slug,
         title: site.title,
+        status: site.status,
         published: site.published,
         moderationComment: site.moderationComment,
         createdAt: toDate(site.createdAt),
@@ -313,14 +315,36 @@ router.put('/sites/:id/published', requireAuth, requireRole('admin'), async (req
     return res.status(400).json({ error: 'Нет данных сайта для публикации' });
   }
 
-  const site = await prisma.showcaseSite.update({
-    where: { id: req.params.id },
-    data: {
-      published,
-      publishedJson: published ? current.constructorJson : undefined,
-      moderationComment: published ? null : moderationComment,
-    },
-    select: { id: true, title: true, slug: true, published: true, moderationComment: true },
+  const site = await prisma.$transaction(async (tx) => {
+    const updated = await tx.showcaseSite.update({
+      where: { id: req.params.id },
+      data: {
+        published,
+        status: published ? 'published' : 'archived',
+        publishedJson: published ? current.constructorJson : undefined,
+        moderationComment: published ? null : moderationComment,
+      },
+      select: { id: true, title: true, slug: true, status: true, published: true, moderationComment: true },
+    });
+
+    const pendingPublication = await tx.showcaseSitePublication.findFirst({
+      where: { siteId: req.params.id, status: 'review' },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
+    });
+
+    if (pendingPublication) {
+      await tx.showcaseSitePublication.update({
+        where: { id: pendingPublication.id },
+        data: {
+          status: published ? 'published' : 'archived',
+          moderationComment: published ? null : moderationComment,
+          reviewedAt: new Date(),
+        },
+      });
+    }
+
+    return updated;
   });
   res.json({ data: site });
 });

@@ -108,6 +108,8 @@ export const api = {
     request(`/excursions/${id}${published ? '?published=true' : ''}`),
   getExcursionPublications: (id: string) =>
     request(`/excursions/${id}/publications`),
+  getSitePublications: () =>
+    request('/showcase/constructor/publications'),
   // Получение статистики:
   getStats: () => request('/excursions/stats'),
   // Создание новой экскурсии:
@@ -116,9 +118,9 @@ export const api = {
   // Обновление экскурсии:
   updateExcursion: (id: string, data: any) =>
     request(`/excursions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  // Публикация экскурсии:
+  // Отправка экскурсии на модерацию:
   publishExcursion: (id: string) =>
-    request(`/excursions/${id}/publish`, { method: 'PUT' }),
+    request(`/excursions/${id}/review`, { method: 'PUT' }),
   getReviews: (excursionId: string) =>
     request(`/excursions/${excursionId}/reviews`),
   createReview: (excursionId: string, data: { authorName: string; rating: number; text: string }) =>
@@ -218,3 +220,4 @@ export const api = {
   updateAdminSitePublished: (id: string, published: boolean, moderationComment?: string) =>
     request(`/admin/sites/${id}/published`, { method: 'PUT', body: JSON.stringify({ published, moderationComment }) }),
 };
+

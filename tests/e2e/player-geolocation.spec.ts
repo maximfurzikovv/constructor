@@ -80,6 +80,7 @@ test('player works on mobile viewport', async ({ page }) => {
     await page.locator('.point-text-close').click();
     // Переходим к завершению маршрута:
     await page.getByRole('button', { name: /Следующая/ }).click();
+    await page.getByRole('button', { name: /Следующая/ }).click();
     await page.getByRole('button', { name: 'Завершить' }).click();
     await expect(page.getByText('Маршрут пройден')).toBeVisible();
     // Горизонтального скролла быть не должно:

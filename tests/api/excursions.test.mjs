@@ -43,17 +43,25 @@ test('excursions: create, sync route points, publish, and read published snapsho
           },
           {
             title: 'Point 2',
-            description: 'Finish point',
+            description: 'Middle point',
             lat: 59.94,
             lng: 30.3289,
             duration: 7,
+            radius: 50,
+          },
+          {
+            title: 'Point 3',
+            description: 'Finish point',
+            lat: 59.945,
+            lng: 30.335,
+            duration: 6,
             radius: 50,
           },
         ],
       }),
     });
 
-    assert.equal(syncedPoints.length, 2);
+    assert.equal(syncedPoints.length, 3);
     assert.equal(syncedPoints[0].order, 0);
     assert.equal(syncedPoints[1].order, 1);
 
@@ -62,13 +70,13 @@ test('excursions: create, sync route points, publish, and read published snapsho
     });
 
     assert.equal(published.status, 'review');
-    assert.equal(published.route.points.length, 2);
+    assert.equal(published.route.points.length, 3);
     assert.ok(published.route.duration > 12);
     assert.ok(published.route.distance > 0);
 
     const snapshot = await apiRequest(`/excursions/${createdExcursion.id}?published=true`);
     assert.equal(snapshot.status, 'published');
-    assert.equal(snapshot.route.points.length, 2);
+    assert.equal(snapshot.route.points.length, 3);
     assert.equal(snapshot.route.points[0].title, 'Point 1');
     assert.equal(snapshot.route.duration, published.route.duration);
     assert.ok(snapshot.route.distance > 0);

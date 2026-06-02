@@ -63,6 +63,16 @@ test('admin: can reject and approve an excursion with moderation comment', async
   });
 
   try {
+    await apiRequest(`/points/route/${excursion.route.id}/sync`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        points: [
+          { title: 'Start', description: 'Start point', lat: 59.934, lng: 30.306, duration: 3, radius: 50 },
+          { title: 'Middle', description: 'Middle point', lat: 59.935, lng: 30.308, duration: 3, radius: 50 },
+          { title: 'Finish', description: 'Finish point', lat: 59.936, lng: 30.31, duration: 4, radius: 50 },
+        ],
+      }),
+    });
     await apiRequest(`/excursions/${excursion.id}/publish`, { method: 'PUT' });
     const rejected = await requestAs(adminToken, `/admin/excursions/${excursion.id}/status`, {
       method: 'PUT',
@@ -159,11 +169,12 @@ test('admin: full moderation flow publishes excursion for anonymous visitor', as
       body: JSON.stringify({
         points: [
           { title: 'Start', description: 'Start point', lat: 59.934, lng: 30.306, duration: 3, radius: 50 },
+          { title: 'Middle', description: 'Middle point', lat: 59.935, lng: 30.308, duration: 3, radius: 50 },
           { title: 'Finish', description: 'Finish point', lat: 59.936, lng: 30.31, duration: 4, radius: 50 },
         ],
       }),
     });
-    assert.equal(syncedPoints.length, 2);
+    assert.equal(syncedPoints.length, 3);
 
     const submitted = await apiRequest(`/excursions/${excursion.id}/publish`, { method: 'PUT' });
     assert.equal(submitted.status, 'review');
@@ -185,7 +196,7 @@ test('admin: full moderation flow publishes excursion for anonymous visitor', as
     const publicSnapshot = await apiRequestRaw(`/excursions/${excursion.id}?published=true`, { skipAuth: true });
     assert.equal(publicSnapshot.response.status, 200);
     assert.equal(publicSnapshot.body.data.status, 'published');
-    assert.equal(publicSnapshot.body.data.route.points.length, 2);
+    assert.equal(publicSnapshot.body.data.route.points.length, 3);
 
     const historyAfter = await apiRequest(`/excursions/${excursion.id}/publications`);
     assert.equal(historyAfter.length, 1);

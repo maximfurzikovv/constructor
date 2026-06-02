@@ -67,6 +67,7 @@ type AdminOverview = {
     id: string;
     slug: string;
     title: string;
+    status: 'draft' | 'review' | 'published' | 'archived';
     published: boolean;
     moderationComment?: string | null;
     createdAt: string;
@@ -98,8 +99,8 @@ function includesSearch(values: Array<string | null | undefined>, search: string
 }
 
 function getSiteStatus(site: AdminOverview['sites'][number]) {
-  if (site.published) return 'approved';
-  if (site.moderationComment) return 'rejected';
+  if (site.status === 'published') return 'approved';
+  if (site.status === 'archived') return 'rejected';
   return 'pending';
 }
 

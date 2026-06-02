@@ -89,11 +89,22 @@ export interface ShowcaseSite {
   description: string;
   theme: 'light' | 'dark';
   heroImage?: string; // Главное изображение сайта
+  status: ExcursionStatus;
   published: boolean;
   constructorJson?: string;
   publishedJson?: string;
   moderationComment?: string | null;
   createdAt: string;
+}
+
+export interface ShowcaseSitePublication {
+  id: string;
+  siteId: string;
+  snapshotJson: string;
+  status: ExcursionStatus;
+  moderationComment?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
 }
 
 // GeoJSON:

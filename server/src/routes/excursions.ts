@@ -369,8 +369,8 @@ router.put('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, r
   }
 });
 
-// PUT публикации экскурсии:
-router.put('/:id/publish', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
+// Отправляет экскурсию на модерацию:
+async function submitExcursionForReview(req: AuthRequest, res: any) {
   // Публиковать можно только свою экскурсию:
   const userId = req.user!.id;
   try {
@@ -386,6 +386,9 @@ router.put('/:id/publish', requireAuth, requireRole('guide'), async (req: AuthRe
       },
     });
     if (!excursion) return res.status(404).json({ error: 'Экскурсия не найдена' });
+    if (!excursion.route || excursion.route.points.length < 3) {
+      return res.status(400).json({ error: 'Для отправки на модерацию добавьте не менее трех точек маршрута' });
+    }
 
     // Build the snapshot — same shape as GET /:id response:
     // Snapshot фиксирует публичную версию экскурсии:
@@ -449,7 +452,11 @@ router.put('/:id/publish', requireAuth, requireRole('guide'), async (req: AuthRe
   } catch {
     res.status(500).json({ error: 'Ошибка публикации' });
   }
-});
+}
+
+router.put('/:id/review', requireAuth, requireRole('guide'), submitExcursionForReview);
+// Старый путь оставлен как совместимость; бизнес-смысл маршрута - отправка на модерацию.
+router.put('/:id/publish', requireAuth, requireRole('guide'), submitExcursionForReview);
 
 router.delete('/:id', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Удалять можно только свои экскурсии:

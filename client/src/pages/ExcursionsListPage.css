@@ -11,6 +11,16 @@
   gap: 16px;
 }
 
+.tours-error {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #ffcdd2;
+  border-radius: 8px;
+  background: #ffebee;
+  color: #b71c1c;
+  font-size: 14px;
+}
+
 .tour-card {
   display: flex;
   flex-direction: column;
@@ -73,6 +83,7 @@
 
 .tour-card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: auto;
 }
