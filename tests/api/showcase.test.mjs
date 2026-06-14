@@ -195,6 +195,7 @@ test('showcase: unpublished site is unavailable by known slug', async () => {
       name: 'Unpublished author',
       password: 'password123',
       confirmPassword: 'password123',
+      consentPersonalData: true,
     }),
   });
   assert.equal(registered.response.ok, true);

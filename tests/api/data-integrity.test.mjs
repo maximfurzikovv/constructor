@@ -17,6 +17,7 @@ async function registerGuide(prefix) {
       email: testEmail(prefix),
       password: 'password123',
       name: `Test ${prefix}`,
+      consentPersonalData: true,
     }),
   });
   // Возвращаем пользователя и его JWT:

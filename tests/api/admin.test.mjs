@@ -104,6 +104,7 @@ test('admin: can reject and approve a web application with moderation comment', 
       name: 'Admin Site Owner',
       password: 'password123',
       confirmPassword: 'password123',
+      consentPersonalData: true,
     }),
   });
   assert.equal(guide.response.ok, true);
