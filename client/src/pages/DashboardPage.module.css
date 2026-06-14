@@ -1,0 +1,258 @@
+﻿.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.dashboard-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 26px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ffffff 0%, #eef6ff 100%);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+}
+
+.dashboard-hero h1 {
+  margin: 4px 0 8px;
+}
+
+.dashboard-hero p,
+.dash-eyebrow {
+  color: var(--color-text-secondary);
+}
+
+.dash-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.hero-summary {
+  min-width: 170px;
+  padding: 18px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #ffffff;
+  text-align: center;
+}
+
+.hero-summary strong {
+  display: block;
+  color: var(--color-primary);
+  font-size: 34px;
+  line-height: 1;
+}
+
+.hero-summary span {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.dashboard-actions {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.dash-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--color-text);
+  font-weight: 700;
+  text-align: center;
+}
+
+.primary-action {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat-card {
+  padding: 18px;
+}
+
+.stat-kicker {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  color: var(--color-primary);
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.stat-label {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.1fr);
+  gap: 16px;
+}
+
+.analytics-card {
+  padding: 20px;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.card-title-row h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.card-title-row p {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.todo-list {
+  display: grid;
+  gap: 10px;
+}
+
+.todo-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  background: #ffffff;
+}
+
+.todo-item > span {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.todo-item.warn > span {
+  background: #f59e0b;
+}
+
+.todo-item.ok > span {
+  background: #10b981;
+}
+
+.todo-item strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.todo-item small {
+  color: var(--color-text-secondary);
+}
+
+.tours-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tour-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.compact-row {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.compact-row:last-child {
+  border-bottom: 0;
+}
+
+.tour-row-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tour-row-title {
+  font-weight: 700;
+}
+
+.tour-row-city,
+.tour-row-meta {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.tour-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.dashboard-empty p {
+  margin: 0 0 12px;
+  color: var(--color-text-secondary);
+}
+
+.dash-secondary-link {
+  display: inline-flex;
+  padding: 9px 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+
+@media (max-width: 1000px) {
+  .dashboard-actions,
+  .dashboard-grid,
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-hero,
+  .tour-row,
+  .tour-row-info,
+  .tour-row-meta {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
