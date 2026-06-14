@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import Card from '../components/ui/Card';
 import { StatusBadge } from '../components/ui/Badge';
 import type { DashboardStats, Excursion } from 'shared/types';
-import './DashboardPage.css';
+import styles from './DashboardPage.module.css';
+void styles;
 
 // Форматирует длину маршрутов:
 function formatDistance(meters: number) {
@@ -70,7 +71,7 @@ export default function DashboardPage() {
   const recentExcursions = excursions.slice(0, 4); // Последние экскурсии
 
   return (
-    <div className="dashboard">
+    <div className={styles.dashboard}>
       <div className="dashboard-hero">
         <div>
           <span className="dash-eyebrow">Личный кабинет</span>
@@ -150,3 +151,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+

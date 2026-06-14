@@ -5,6 +5,7 @@ import { AuthRequest, requireAuth, requireRole } from '../authSecurity';
 import { normalizeSiteSlug, SiteBuilderValidationError, validateConstructorPayload } from '../siteBuilderSecurity';
 import { calculateRouteMetrics } from '../routeMetrics';
 import { storeMediaFile } from '../objectStorage';
+import { sendShowcaseLeadEmail } from '../mailer';
 
 const router = Router();
 
@@ -48,6 +49,27 @@ function createFallbackConstructor(site: { slug: string; title: string }) {
       },
     ],
     theme: {},
+  };
+}
+
+function formatLeadPayload(fields: unknown) {
+  if (!Array.isArray(fields)) return [];
+  return fields
+    .map((item) => ({
+      label: typeof item?.label === 'string' ? item.label.trim().slice(0, 120) : '',
+      value: typeof item?.value === 'string' ? item.value.trim().slice(0, 2000) : '',
+    }))
+    .filter((item) => item.label && item.value);
+}
+
+function formatLead(lead: { id: string; siteId: string; authorId: string; formTitle: string; payloadJson: string; createdAt: Date }) {
+  return {
+    id: lead.id,
+    siteId: lead.siteId,
+    authorId: lead.authorId,
+    formTitle: lead.formTitle,
+    fields: JSON.parse(lead.payloadJson),
+    createdAt: lead.createdAt.toISOString(),
   };
 }
 
@@ -207,6 +229,23 @@ router.get('/constructor/publications', requireAuth, requireRole('guide'), async
   });
 });
 
+// Возвращает последние заявки, отправленные через публичную форму сайта автора:
+router.get('/constructor/leads', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
+  const site = await prisma.showcaseSite.findFirst({
+    where: { authorId: req.user!.id },
+    select: { id: true },
+  });
+  if (!site) return res.json({ data: [] });
+
+  const leads = await prisma.showcaseLead.findMany({
+    where: { siteId: site.id },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  });
+
+  res.json({ data: leads.map(formatLead) });
+});
+
 // Сохраняет черновик конструктора без публикации:
 router.put('/constructor/draft', requireAuth, requireRole('guide'), async (req: AuthRequest, res) => {
   // Черновик сохраняется для текущего автора:
@@ -334,6 +373,96 @@ router.get('/:slug', async (req, res) => {
       constructorData: { ...constructorData, siteSlug: constructorData.siteSlug || site.slug },
     },
   });
+});
+
+// Принимает заявку с публичной формы сайта и сохраняет ее у автора:
+router.post('/:slug/leads', async (req, res) => {
+  try {
+    const site = await prisma.showcaseSite.findUnique({
+      where: { slug: req.params.slug },
+      select: {
+        id: true,
+        authorId: true,
+        published: true,
+        author: {
+          select: {
+            email: true,
+          },
+        },
+        publishedJson: true,
+      },
+    });
+
+    if (!site || !site.published) return res.status(404).json({ error: 'Site not found' });
+
+    const formTitle = typeof req.body.formTitle === 'string' ? req.body.formTitle.trim().slice(0, 160) : '';
+    const fields = formatLeadPayload(req.body.fields);
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'Заполните хотя бы одно поле формы' });
+    }
+
+    const recipientFromPayload = typeof req.body.recipientEmail === 'string' ? req.body.recipientEmail.trim().toLowerCase() : '';
+    let recipientEmail = recipientFromPayload || site.author.email;
+
+    if (!recipientEmail && site.publishedJson) {
+      try {
+        const publishedData = JSON.parse(site.publishedJson);
+        const pages = Array.isArray(publishedData?.pages) ? publishedData.pages : [];
+        for (const page of pages) {
+          const sections = Array.isArray(page?.sections) ? page.sections : [];
+          for (const section of sections) {
+            const columns = Array.isArray(section?.columns) ? section.columns : [];
+            for (const column of columns) {
+              const elements = Array.isArray(column?.elements) ? column.elements : [];
+              for (const element of elements) {
+                if (element?.type === 'form' && String(element?.data?.heading || '') === formTitle) {
+                  const candidate = String(element?.data?.recipientEmail || '').trim().toLowerCase();
+                  if (candidate) recipientEmail = candidate;
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // fallback остается на email автора
+      }
+    }
+
+    if (!recipientEmail) {
+      return res.status(400).json({ error: 'Для формы не настроен email получателя' });
+    }
+
+    const lead = await prisma.showcaseLead.create({
+      data: {
+        siteId: site.id,
+        authorId: site.authorId,
+        formTitle,
+        payloadJson: JSON.stringify(fields),
+      },
+    });
+
+    await sendShowcaseLeadEmail({
+      to: recipientEmail,
+      siteSlug: req.params.slug,
+      formTitle,
+      fields,
+    });
+
+    return res.status(201).json({
+      data: {
+        id: lead.id,
+        createdAt: lead.createdAt.toISOString(),
+      },
+    });
+  } catch (error: any) {
+    console.error('Showcase lead submit failed:', error);
+    return res.status(503).json({
+      error: error?.message === 'SMTP is not configured'
+        ? 'SMTP не настроен. Укажите SMTP-переменные окружения на сервере.'
+        : 'Не удалось отправить форму. Проверьте настройки SMTP и лог сервера.',
+    });
+  }
 });
 
 // Обновляет базовые настройки витрины старого формата:

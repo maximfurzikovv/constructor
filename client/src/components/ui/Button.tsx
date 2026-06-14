@@ -1,5 +1,6 @@
 ﻿import React from 'react';
-import './Button.css';
+import styles from './Button.module.css';
+void styles;
 
 // Свойства кнопки:
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -19,7 +20,7 @@ export default function Button({
   return (
     // Классы собираются из варианта, размера и внешнего className:
     <button
-      className={`btn btn-${variant} btn-${size} ${className}`}
+      className={`${styles.btn} btn-${variant} btn-${size} ${className}`}
       {...props}
     >
       {/* Содержимое кнопки: */}
@@ -27,3 +28,5 @@ export default function Button({
     </button>
   );
 }
+
+

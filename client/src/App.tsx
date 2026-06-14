@@ -71,8 +71,6 @@ export default function App() {
     </Routes>
   );
 }
-
-
 // Приводит адрес сайта к slug:
 export function normalizeSiteSlug(value: unknown, fallback: string) {
     if (typeof value !== 'string') return fallback; // Нестроковое значение
@@ -84,3 +82,5 @@ export function normalizeSiteSlug(value: unknown, fallback: string) {
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '') || fallback; // Безопасный URL-slug
 }
+
+

@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Circle, MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { api } from '../api/client';
 import Button from '../components/ui/Button';
 import type { Excursion } from 'shared/types';
-import './ExcursionPlayerPage.css';
+import styles from './ExcursionPlayerPage.module.css';
+void styles;
 
 const SERVER_URL = '';
 
@@ -410,7 +411,7 @@ export default function ExcursionPlayerPage() {
       : []; // Путь к старту
 
   return (
-    <div className="player-layout">
+    <div className={styles['player-layout']}>
       <div className="player-map">
         <MapContainer center={center} zoom={14} style={{ width: '100%', height: '100%' }} zoomControl={false} attributionControl={false}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -620,3 +621,5 @@ export default function ExcursionPlayerPage() {
     </div>
   );
 }
+
+

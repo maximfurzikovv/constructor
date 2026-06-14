@@ -6,7 +6,8 @@ import { api } from '../api/client';
 import Button from '../components/ui/Button';
 import Input, { Textarea } from '../components/ui/Input';
 import type { Excursion, MediaItem, Point } from 'shared/types';
-import './RouteEditorPage.css';
+import styles from './RouteEditorPage.module.css';
+void styles;
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -479,7 +480,7 @@ export default function RouteEditorPage() {
   const audioMedia = (selectedPoint?.media || []).filter((media) => media.type === 'audio');
 
   return (
-    <div className="editor-layout">
+    <div className={styles['editor-layout']}>
       {/* Левая панель инструментов маршрута: */}
       <div className="editor-tools">
         <h3>Инструменты</h3>
@@ -792,5 +793,6 @@ export default function RouteEditorPage() {
     </div>
   );
 }
+
 
 

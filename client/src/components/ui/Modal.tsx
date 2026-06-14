@@ -1,5 +1,6 @@
 ﻿import React, { useEffect } from 'react';
-import './Modal.css';
+import styles from './Modal.module.css';
+void styles;
 
 // Свойства модального окна:
 interface ModalProps {
@@ -27,7 +28,7 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
 
   return (
     // Клик по затемнению закрывает окно:
-    <div className="modal-overlay" onClick={onClose}>
+    <div className={styles['modal-overlay']} onClick={onClose}>
       {/* Клик внутри окна не должен закрывать модалку: */}
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         {/* Верхняя часть окна: */}
@@ -45,3 +46,5 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
     </div>
   );
 }
+
+

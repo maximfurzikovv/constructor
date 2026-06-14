@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import { api } from '../api/client';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import { sanitizeEmbedHtml } from '../utils/contentSecurity';
-import './ShowcaseHomePage.css';
+import styles from './ShowcaseHomePage.module.css';
+void styles;
 
 // Обновляет favicon сайта:
 function setFavicon(href: string) {
@@ -47,7 +48,7 @@ export default function ShowcaseHomePage() {
         </div>
       </header>
       <main style={{ padding: '0 32px' }}>
-        <div className="showcase-hero">
+    <div className={styles['showcase-hero']}>
           <h1>{site.title}</h1>
           <p>{site.description}</p>
         </div>
@@ -303,17 +304,24 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
   }
   // Якорь для перехода внутри страницы:
   if (element.type === 'menu') {
-    return <div id={element.data.anchor || undefined} className="sc-el-anchor" style={css}>{element.data.label}</div>;
+    const anchor = String(element.data.anchor || '').trim();
+    return (
+      <button
+        className="sc-el-button outline"
+        type="button"
+        style={css}
+        onClick={() => {
+          if (!anchor) return;
+          document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
+      >
+        {element.data.label || 'Перейти к разделу'}
+      </button>
+    );
   }
   // Простая форма обратной связи:
   if (element.type === 'form') {
-    return (
-      <form className="sc-el-form" style={css}>
-        <h3>{element.data.heading}</h3>
-        {(element.data.fields || []).map((field: string) => <input key={field} placeholder={field} />)}
-        <button type="button">{element.data.buttonText || 'Отправить'}</button>
-      </form>
-    );
+    return <PublicLeadForm slug={slug} element={element} css={css} />;
   }
   // Карта Leaflet внутри опубликованного сайта:
   if (element.type === 'map') {
@@ -325,17 +333,9 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
   }
   // Пользовательский HTML-код:
   if (element.type === 'embed') {
-    // Чистим HTML перед выводом:
     const safeHtml = sanitizeEmbedHtml(element.data.code || '');
-    // Показываем embed в песочнице:
     return (
-      <iframe
-        className="sc-el-embed-frame"
-        style={css}
-        title={element.data.title || 'Embed'}
-        sandbox="allow-same-origin allow-popups allow-forms"
-        srcDoc={safeHtml}
-      />
+      <pre className="sc-el-embed-frame" style={css}>{safeHtml}</pre>
     );
   }
   // Список опубликованных экскурсий:
@@ -389,6 +389,59 @@ function PublicElement({ element, excursions, slug, primary }: { element: any; e
         {element.data.address && <div>Адрес: {element.data.address}</div>}
       </div>
     </div>
+  );
+}
+
+function PublicLeadForm({ slug, element, css }: { slug: string; element: any; css: React.CSSProperties }) {
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [message, setMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const fields: string[] = (element.data.fields || []).filter(Boolean);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const payload = fields
+      .map((label) => ({ label, value: String(values[label] || '').trim() }))
+      .filter((item) => item.value);
+
+    if (payload.length === 0) {
+      setMessage('Заполните хотя бы одно поле');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setMessage('');
+      await api.submitShowcaseLead(slug, {
+        formTitle: String(element.data.heading || 'Форма обратной связи'),
+        recipientEmail: String(element.data.recipientEmail || '').trim(),
+        fields: payload,
+      });
+      setValues({});
+      setMessage('Заявка отправлена автору');
+    } catch (error: any) {
+      setMessage(error.message || 'Не удалось отправить форму');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form className="sc-el-form" style={css} onSubmit={handleSubmit}>
+      <h3>{element.data.heading}</h3>
+      {fields.map((field) => (
+        <input
+          key={field}
+          placeholder={field}
+          value={values[field] || ''}
+          onChange={(event) => setValues((current) => ({ ...current, [field]: event.target.value }))}
+        />
+      ))}
+      {message ? <p className="sc-el-form-message">{message}</p> : null}
+      <button type="submit" disabled={submitting}>
+        {submitting ? 'Отправка...' : element.data.buttonText || 'Отправить'}
+      </button>
+    </form>
   );
 }
 
@@ -460,3 +513,5 @@ function PublicLeafletMap({ data }: { data: Record<string, any> }) {
     </div>
   );
 }
+
+

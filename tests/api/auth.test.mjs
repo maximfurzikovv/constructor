@@ -44,7 +44,9 @@ test('auth: user registration returns token and created user', async () => {
     body: JSON.stringify({
       email,
       password: 'password123',
+      confirmPassword: 'password123',
       name: 'Test User',
+      consentPersonalData: true,
     }),
   });
 
@@ -60,7 +62,8 @@ test('auth: duplicate email returns clear conflict', async () => {
     password: 'password123',
     confirmPassword: 'password123',
     name: 'Duplicate User',
-  }; // Р”Р°РЅРЅС‹Рµ РїРѕРІС‚РѕСЂРЅРѕР№ СЂРµРіРёСЃС‚СЂР°С†РёРё
+    consentPersonalData: true,
+  };
 
   await apiRequest('/auth/register', {
     method: 'POST',
@@ -84,9 +87,26 @@ test('auth: mismatched registration passwords are rejected', async () => {
       password: 'password123',
       confirmPassword: 'password456',
       name: 'Mismatch User',
+      consentPersonalData: true,
     }),
   });
 
   assert.equal(response.status, 400);
   assert.equal(body.error, 'РџР°СЂРѕР»Рё РЅРµ СЃРѕРІРїР°РґР°СЋС‚');
+});
+
+test('auth: registration without personal data consent is rejected', async () => {
+  const { response, body } = await apiRequestRaw('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: `consent-${Date.now()}@example.com`,
+      password: 'password123',
+      confirmPassword: 'password123',
+      name: 'Consent User',
+      consentPersonalData: false,
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal(body.error, 'Требуется согласие на обработку персональных данных');
 });

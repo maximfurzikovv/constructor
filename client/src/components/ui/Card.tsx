@@ -1,5 +1,6 @@
 ﻿import React from 'react';
-import './Card.css';
+import styles from './Card.module.css';
+void styles;
 
 // Свойства карточки:
 interface CardProps {
@@ -13,7 +14,7 @@ export default function Card({ children, className = '', onClick }: CardProps) {
   return (
     // Если есть onClick:
     <div
-      className={`card ${onClick ? 'card-clickable' : ''} ${className}`}
+      className={`${styles.card} ${onClick ? 'card-clickable' : ''} ${className}`}
       onClick={onClick}
     >
       {/* Содержимое карточки: */}
@@ -21,3 +22,5 @@ export default function Card({ children, className = '', onClick }: CardProps) {
     </div>
   );
 }
+
+

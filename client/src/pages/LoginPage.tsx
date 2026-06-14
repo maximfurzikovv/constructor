@@ -4,7 +4,8 @@ import { api } from '../api/client';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
-import './AuthPages.css';
+import styles from './AuthPages.module.css';
+void styles;
 
 // Страница входа в аккаунт:
 export default function LoginPage() {
@@ -40,7 +41,7 @@ export default function LoginPage() {
 
   return (
     // Общий фон страницы:
-    <div className="auth-page">
+    <div className={styles['auth-page']}>
       {/* Карточка формы входа: */}
       <Card className="auth-card">
         {/* Заголовок формы: */}
@@ -80,3 +81,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+

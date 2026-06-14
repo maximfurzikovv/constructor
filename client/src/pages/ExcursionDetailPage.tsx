@@ -6,7 +6,8 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import type { Excursion } from 'shared/types';
-import './ExcursionDetailPage.css';
+import styles from './ExcursionDetailPage.module.css';
+void styles;
 
 // Публичная страница одной экскурсии:
 export default function ExcursionDetailPage() {
@@ -54,7 +55,7 @@ export default function ExcursionDetailPage() {
 
   return (
     // Контейнер страницы:
-    <div className="tour-detail">
+    <div className={styles['tour-detail']}>
       {/* Возврат на публичный сайт: */}
       <Link to={`/s/${slug}`} className="td-back">
         ← Назад к каталогу
@@ -180,3 +181,5 @@ export default function ExcursionDetailPage() {
     </div>
   );
 }
+
+

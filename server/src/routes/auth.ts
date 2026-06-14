@@ -75,7 +75,7 @@ router.post('/login', async (req, res) => {
 // POST-маршрут регистрации:
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, confirmPassword, name } = req.body; // Данные формы
+    const { email, password, confirmPassword, name, consentPersonalData } = req.body; // Данные формы
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Заполните имя, email и пароль' });
     } // Проверка заполнения
@@ -95,6 +95,9 @@ router.post('/register', async (req, res) => {
     if (typeof confirmPassword === 'string' && password !== confirmPassword) {
       return res.status(400).json({ error: 'Пароли не совпадают' });
     } // Проверка повтора
+    if (consentPersonalData !== true) {
+      return res.status(400).json({ error: '��������� �������� �� ��������� ������������ ������' });
+    } // �������� ��������
 
     const existingUser = await withDbRetry(() => prisma.user.findUnique({ where: { email: normalizedEmail } })); // Существующий аккаунт
     if (existingUser) {
@@ -157,3 +160,5 @@ router.post('/logout', (_req, res) => {
 
 // Экспорт по умолчанию:
 export default router;
+
+

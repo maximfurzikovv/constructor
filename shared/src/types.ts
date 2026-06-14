@@ -107,6 +107,20 @@ export interface ShowcaseSitePublication {
   reviewedAt?: string | null;
 }
 
+export interface ShowcaseLeadField {
+  label: string;
+  value: string;
+}
+
+export interface ShowcaseLead {
+  id: string;
+  siteId: string;
+  authorId: string;
+  formTitle: string;
+  fields: ShowcaseLeadField[];
+  createdAt: string;
+}
+
 // GeoJSON:
 // GeoJSON точки:
 export interface GeoJSONPoint {

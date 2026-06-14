@@ -8,7 +8,8 @@ import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import { Textarea } from '../components/ui/Input';
 import type { Excursion } from 'shared/types';
-import './ExcursionsListPage.css';
+import styles from './ExcursionsListPage.module.css';
+void styles;
 
 // Страница списка экскурсий:
 export default function ExcursionsListPage() {
@@ -67,7 +68,7 @@ export default function ExcursionsListPage() {
     // Контейнер страницы экскурсий:
     <div className="tours-page">
       {/* Шапка страницы: */}
-      <div className="tours-header">
+      <div className={styles['tours-header']}>
         <h1>Экскурсии</h1>
         {/* Открывает форму создания экскурсии: */}
         <Button onClick={() => setShowCreate(true)}>+ Новая экскурсия</Button>
@@ -162,3 +163,5 @@ export default function ExcursionsListPage() {
     </div>
   );
 }
+
+

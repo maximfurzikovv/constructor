@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import './AdminLayout.css';
+import styles from './AdminLayout.module.css';
+void styles;
 import { api } from '../api/client';
 
 type NavItem = {
@@ -62,7 +63,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className={`admin-layout ${user.role === 'admin' ? 'admin-theme' : ''} ${!sidebarOpen ? 'sidebar-collapsed' : ''}`}>
+    <div className={`${styles['admin-layout']} ${user.role === 'admin' ? 'admin-theme' : ''} ${!sidebarOpen ? 'sidebar-collapsed' : ''}`}>
       {/* Если панель открыта, показываем меню: */}
       {sidebarOpen ? (
         <aside className="sidebar">
@@ -126,3 +127,5 @@ export default function AdminLayout() {
     </div>
   );
 }
+
+

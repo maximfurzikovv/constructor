@@ -3,7 +3,8 @@ import { api } from '../api/client';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import type { Excursion, MediaItem } from 'shared/types';
-import './MediaLibraryPage.css';
+import styles from './MediaLibraryPage.module.css';
+void styles;
 
 // Базовый адрес сервера:
 const SERVER_URL = '';
@@ -75,7 +76,7 @@ export default function MediaLibraryPage() {
 
   return (
     // Контейнер страницы медиатеки:
-    <div className="media-page">
+    <div className={styles['media-page']}>
       {/* Заголовок страницы: */}
       <h1>Медиатека</h1>
       {/* Краткое описание: */}
@@ -176,3 +177,5 @@ export default function MediaLibraryPage() {
     </div>
   );
 }
+
+

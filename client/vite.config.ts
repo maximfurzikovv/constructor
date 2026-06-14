@@ -9,6 +9,11 @@ export default defineConfig({
   root: __dirname,
   // Подключает React-плагин для Vite.
   plugins: [react()],
+  css: {
+    modules: {
+      generateScopedName: '[local]',
+    },
+  },
   // Настраивает короткий импорт shared-модулей.
   resolve: {
     alias: {

@@ -4,7 +4,8 @@ import { api } from '../../api/client';
 import Button from '../../components/ui/Button';
 import Input, { Textarea } from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
-import './SiteBuilderPage.css';
+import styles from './SiteBuilderPage.module.css';
+void styles;
 
 // Режим предпросмотра страницы:
 type ViewportMode = 'desktop' | 'tablet' | 'mobile';
@@ -500,7 +501,7 @@ function createElement(type: ElementType): BuilderElement {
     form: {
       id: uid('element'),
       type,
-      data: { heading: 'Оставить заявку', fields: ['Имя', 'Email', 'Сообщение'], buttonText: 'Отправить' },
+      data: { heading: 'Оставить заявку', fields: ['Имя', 'Email', 'Сообщение'], buttonText: 'Отправить', recipientEmail: '' },
       style: { padding: 20, margin: 8, radius: 12, background: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', width: 100 },
     },
     map: {
@@ -1310,7 +1311,7 @@ export default function SiteBuilderPage() {
   if (!site || !activePage) return <p style={{ padding: 20 }}>Загрузка...</p>;
 
   return (
-    <div className={`constructor-layout ${!leftPanelOpen ? 'left-collapsed' : ''} ${!rightPanelOpen ? 'right-collapsed' : ''} ${cleanPreview ? 'clean-preview-mode' : ''}`}>
+    <div className={`${styles['constructor-layout']} ${!leftPanelOpen ? 'left-collapsed' : ''} ${!rightPanelOpen ? 'right-collapsed' : ''} ${cleanPreview ? 'clean-preview-mode' : ''}`}>
       {/* Левая панель с вкладками конструктора: */}
       {leftPanelOpen && (
       <div className="constructor-left">
@@ -2203,6 +2204,7 @@ function ElementEditor({ element, tours, updateData, uploadSingleImage, uploadGa
         <Input label="Заголовок" value={element.data.heading} onChange={(event) => updateData(element.id, 'heading', event.target.value)} />
         <Textarea label="Поля формы" value={(element.data.fields || []).join('\n')} onChange={(event) => updateData(element.id, 'fields', event.target.value.split('\n').filter(Boolean))} />
         <Input label="Текст кнопки" value={element.data.buttonText} onChange={(event) => updateData(element.id, 'buttonText', event.target.value)} />
+        <Input label="Email получателя" type="email" value={element.data.recipientEmail || ''} onChange={(event) => updateData(element.id, 'recipientEmail', event.target.value)} />
       </>
     );
   }
@@ -2396,6 +2398,8 @@ function ColorField({ label, value, onChange, allowTransparent }: { label: strin
     </div>
   );
 }
+
+
 
 
 

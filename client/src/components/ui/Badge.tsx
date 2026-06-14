@@ -1,5 +1,6 @@
-import React from 'react';
-import './Badge.css';
+﻿import React from 'react';
+import styles from './Badge.module.css';
+void styles;
 
 // Свойства бейджа:
 interface BadgeProps {
@@ -9,7 +10,7 @@ interface BadgeProps {
 
 // Цветная метка:
 export default function Badge({ children, variant = 'default' }: BadgeProps) {
-  return <span className={`badge badge-${variant}`}>{children}</span>; // По варианту бейджа
+  return <span className={`${styles.badge} badge-${variant}`}>{children}</span>; // По варианту бейджа
 }
 
 // Словарь статусов экскурсии:
@@ -27,3 +28,5 @@ export function StatusBadge({ status }: { status: string }) {
   // Рендерим с найденным вариантом:
   return <Badge variant={config.variant}>{config.label}</Badge>;
 }
+
+

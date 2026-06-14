@@ -4,7 +4,9 @@ import { api } from '../api/client';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
-import './AuthPages.css';
+import Modal from '../components/ui/Modal';
+import styles from './AuthPages.module.css';
+void styles;
 
 // Страница регистрации нового пользователя:
 export default function RegisterPage() {
@@ -20,38 +22,51 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   // Текст ошибки:
   const [error, setError] = useState('');
-
+  // Флаг открытия модального окна:
+  const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
   // Обработка отправки формы регистрации:
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // Отключаем стандартную отправку браузера
+  const submitRegistration = async () => {
     setError(''); // Очищаем прошлую ошибку
     // Проверяем совпадение паролей до запроса:
     if (password !== confirmPassword) {
       setError('Пароли не совпадают');
-      return;
+      return false;
     }
     // Проверяем минимальную длину пароля:
     if (password.length < 8) {
       setError('Пароль должен содержать не менее 8 символов');
-      return;
+      return false;
     }
     try {
       // Создаем пользователя через API:
-      const result: any = await api.register(email.trim().toLowerCase(), password, confirmPassword, name.trim());
+      const result: any = await api.register(
+        email.trim().toLowerCase(),
+        password,
+        confirmPassword,
+        name.trim(),
+        true,
+      );
       // Старый браузерный токен больше не используется:
       localStorage.removeItem('token');
       // Сохраняем профиль пользователя:
       localStorage.setItem('user', JSON.stringify(result.user));
       // Переходим в админку:
       navigate('/admin');
+      return true;
     } catch (err: any) {
       setError(err.message); // Ошибка регистрации
+      return false;
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsConsentModalOpen(true);
   };
 
   return (
     // Общий контейнер страницы авторизации:
-    <div className="auth-page">
+    <div className={styles['auth-page']}>
       {/* Карточка регистрации: */}
       <Card className="auth-card">
         {/* Заголовок формы: */}
@@ -101,9 +116,52 @@ export default function RegisterPage() {
           Уже есть аккаунт? <Link to="/login">Войти</Link>
         </p>
       </Card>
+      <Modal
+        open={isConsentModalOpen}
+        onClose={() => setIsConsentModalOpen(false)}
+        title="Согласие на обработку персональных данных"
+      >
+        <div className={styles['consent-modal-content']}>
+          <p>
+            Я даю согласие на обработку персональных данных, указанных при регистрации,
+            включая имя и адрес электронной почты, для создания и сопровождения учетной записи.
+          </p>
+          <p>
+            Обработка включает сбор, хранение, использование и удаление данных в пределах работы системы,
+            а также предоставление доступа к функциям конструктора и публикации материалов.
+          </p>
+          <p>
+            Согласие действует до удаления учетной записи или его отзыва в установленном порядке.
+          </p>
+          <div className={styles['consent-modal-actions']}>
+            <Button
+              type="button"
+              onClick={async () => {
+                const success = await submitRegistration();
+                if (success) {
+                  setIsConsentModalOpen(false);
+                }
+              }}
+            >
+              Принять
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsConsentModalOpen(false);
+              }}
+            >
+              Отмена
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
+
+
 
 
 

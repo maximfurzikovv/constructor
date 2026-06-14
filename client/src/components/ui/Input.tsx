@@ -1,5 +1,6 @@
 ﻿import React, { useId } from 'react';
-import './Input.css';
+import styles from './Input.module.css';
+void styles;
 
 // Свойства поля ввода:
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -12,11 +13,11 @@ export default function Input({ label, className = '', ...props }: InputProps) {
   const inputId = props.id || generatedId; // Переданный id имеет приоритет
 
   return (
-    <div className={`input-group ${className}`}>
+    <div className={`${styles['input-group']} ${className}`}>
       {/* Если label передан, показываем подпись: */}
       {label && <label className="input-label" htmlFor={inputId}>{label}</label>}
       {/* Все остальные свойства идут в сам input: */}
-      <input id={inputId} className="input" {...props} />
+      <input id={inputId} className={styles.input} {...props} />
     </div>
   );
 }
@@ -39,11 +40,13 @@ export function Textarea({
   const textareaId = props.id || generatedId; // Переданный id имеет приоритет
 
   return (
-    <div className={`input-group ${className}`}>
+    <div className={`${styles['input-group']} ${className}`}>
       {/* Подпись выводится только при наличии label: */}
       {label && <label className="input-label" htmlFor={textareaId}>{label}</label>}
       {/* textarea использует общий стиль input и свой стиль textarea: */}
-      <textarea id={textareaId} className="input textarea" {...props} />
+      <textarea id={textareaId} className={`${styles.input} textarea`} {...props} />
     </div>
   );
 }
+
+

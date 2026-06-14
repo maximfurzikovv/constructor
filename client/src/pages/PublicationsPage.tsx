@@ -4,7 +4,8 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/Badge';
 import type { Excursion, ExcursionPublication } from 'shared/types';
-import './PublicationsPage.css';
+import styles from './PublicationsPage.module.css';
+void styles;
 
 function formatDate(value?: string | null) {
   if (!value) return 'без даты';
@@ -99,7 +100,7 @@ export default function PublicationsPage() {
 
   return (
     // Контейнер страницы публикаций:
-    <div className="publications-page">
+    <div className={styles['publications-page']}>
       {/* Заголовок раздела: */}
       <h1>Публикации</h1>
       {/* Подпись раздела: */}
@@ -202,3 +203,5 @@ export default function PublicationsPage() {
     </div>
   );
 }
+
+

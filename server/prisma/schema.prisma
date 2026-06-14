@@ -18,6 +18,7 @@ model User {
 
   excursions    Excursion[]
   showcaseSites ShowcaseSite[]
+  showcaseLeads ShowcaseLead[]
 }
 
 model Excursion {
@@ -128,6 +129,7 @@ model ShowcaseSite {
 
   author User @relation(fields: [authorId], references: [id])
   publications ShowcaseSitePublication[]
+  leads        ShowcaseLead[]
 }
 
 model ShowcaseSitePublication {
@@ -143,4 +145,19 @@ model ShowcaseSitePublication {
 
   @@index([siteId])
   @@index([status])
+}
+
+model ShowcaseLead {
+  id        String   @id @default(uuid())
+  siteId     String
+  authorId   String
+  formTitle  String   @default("")
+  payloadJson String
+  createdAt  DateTime @default(now())
+
+  site   ShowcaseSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  author User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, createdAt])
+  @@index([authorId, createdAt])
 }

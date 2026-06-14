@@ -1,11 +1,12 @@
-import { Link } from 'react-router-dom';
-import './LandingPage.css';
+﻿import { Link } from 'react-router-dom';
+import styles from './LandingPage.module.css';
+void styles;
 
 // Стартовая страница продукта:
 export default function LandingPage() {
   return (
     // Общий экран перед авторизацией:
-    <main className="landing-page">
+    <main className={styles['landing-page']}>
       {/* Центральный блок описания: */}
       <section className="landing-hero">
         <span className="landing-kicker">Веб-конструктор экскурсий</span>
@@ -39,3 +40,5 @@ export default function LandingPage() {
     </main>
   );
 }
+
+

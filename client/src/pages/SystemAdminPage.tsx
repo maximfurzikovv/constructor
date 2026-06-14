@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+﻿import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
-import './SystemAdminPage.css';
+import styles from './SystemAdminPage.module.css';
+void styles;
 
 type AdminSection = 'monitoring' | 'users' | 'moderation';
 type ModerationFilter = 'all' | 'pending' | 'approved' | 'rejected';
@@ -236,11 +237,11 @@ export default function SystemAdminPage() {
   };
 
   if (!data && !error) {
-    return <div className="system-admin"><Card className="system-loading">Загрузка панели администратора</Card></div>;
+    return <div className={styles['system-admin']}><Card className="system-loading">Загрузка панели администратора</Card></div>;
   }
 
   return (
-    <div className="system-admin">
+    <div className={styles['system-admin']}>
       <div className="system-header">
         <div>
           <span className="system-eyebrow">Панель администратора</span>
@@ -446,3 +447,5 @@ export default function SystemAdminPage() {
     </div>
   );
 }
+
+

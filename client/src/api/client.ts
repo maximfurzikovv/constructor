@@ -91,10 +91,10 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   // Регистрация пользователя:
-  register: (email: string, password: string, confirmPassword: string, name: string) =>
+  register: (email: string, password: string, confirmPassword: string, name: string, consentPersonalData: boolean) =>
     request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, confirmPassword, name }),
+      body: JSON.stringify({ email, password, confirmPassword, name, consentPersonalData }),
     }),
   // Получение текущего пользователя по JWT:
   me: () => request('/auth/me'),
@@ -110,6 +110,8 @@ export const api = {
     request(`/excursions/${id}/publications`),
   getSitePublications: () =>
     request('/showcase/constructor/publications'),
+  getShowcaseLeads: () =>
+    request('/showcase/constructor/leads'),
   // Получение статистики:
   getStats: () => request('/excursions/stats'),
   // Создание новой экскурсии:
@@ -180,6 +182,9 @@ export const api = {
 
   // Получение публичного сайта по slug:
   getShowcase: (slug: string) => request(`/showcase/${slug}`),
+  // Отправка заявки с публичного сайта автору:
+  submitShowcaseLead: (slug: string, data: { formTitle: string; recipientEmail?: string; fields: Array<{ label: string; value: string }> }) =>
+    request(`/showcase/${slug}/leads`, { method: 'POST', body: JSON.stringify(data) }),
   // Загрузка изображения конструктора на сервер:
   uploadSiteImage: async (file: File) => {
     const uploadFile = await compressImageForUpload(file); // Файл после возможного сжатия
@@ -220,4 +225,3 @@ export const api = {
   updateAdminSitePublished: (id: string, published: boolean, moderationComment?: string) =>
     request(`/admin/sites/${id}/published`, { method: 'PUT', body: JSON.stringify({ published, moderationComment }) }),
 };
-
