@@ -23,6 +23,7 @@ type AdminOverview = {
     users: number;
     guides: number;
     admins: number;
+    otherUsers?: number;
     excursions: number;
     publishedExcursions: number;
     draftExcursions: number;
@@ -31,6 +32,7 @@ type AdminOverview = {
     media: number;
     sites: number;
     publishedSites: number;
+    draftSites?: number;
     pendingSites: number;
     rejectedSites?: number;
     checked: number;
@@ -157,10 +159,12 @@ export default function SystemAdminPage() {
   const risks = useMemo(() => {
     if (!data) return [];
     const items = [];
-    if (data.summary.reviewExcursions > 0) items.push(`${data.summary.reviewExcursions} экскурсий ждут модерации`);
-    if (data.summary.archivedExcursions > 0) items.push(`${data.summary.archivedExcursions} экскурсий отклонены`);
-    if (data.summary.pendingSites > 0) items.push(`${data.summary.pendingSites} веб-приложений на модерации`);
-    if ((data.summary.rejectedSites || 0) > 0) items.push(`${data.summary.rejectedSites} веб-приложений отклонены`);
+    if (data.summary.reviewExcursions > 0) items.push('Есть экскурсии, ожидающие решения администратора');
+    if (data.summary.pendingSites > 0) items.push('Есть веб-приложения, ожидающие решения администратора');
+    if (data.summary.archivedExcursions > 0) items.push('Есть отклоненные экскурсии, которые могут потребовать повторной проверки');
+    if ((data.summary.rejectedSites || 0) > 0) items.push('Есть отклоненные веб-приложения, которые могут вернуться после исправлений');
+    if (data.summary.excursions > 0 && data.summary.publishedExcursions === 0) items.push('Нет ни одной одобренной экскурсии');
+    if (data.summary.sites > 0 && data.summary.publishedSites === 0) items.push('Нет ни одного открытого веб-приложения');
     return items;
   }, [data]);
 
@@ -218,6 +222,33 @@ export default function SystemAdminPage() {
     }
   };
 
+  const getMonitoringDetails = (summary: AdminOverview['summary']) => {
+    const userParts = [`${summary.guides} экскурсоводов`, `${summary.admins} админ.`];
+    if ((summary.otherUsers || 0) > 0) userParts.push(`${summary.otherUsers} прочих ролей`);
+
+    const excursionParts = [
+      `${summary.publishedExcursions} одобрено`,
+      `${summary.reviewExcursions} на модерации`,
+      `${summary.draftExcursions} черновиков`,
+      `${summary.archivedExcursions} отклонено`,
+    ];
+
+    const siteParts = [
+      `${summary.publishedSites} открыто`,
+      `${summary.pendingSites} ожидают решения`,
+      `${summary.draftSites || 0} черновиков`,
+      `${summary.rejectedSites || 0} отклонено`,
+    ];
+
+    return {
+      users: userParts.join(', '),
+      excursions: excursionParts.join(', '),
+      sites: siteParts.join(', '),
+    };
+  };
+
+  const approvedPercent = data?.summary.excursions ? Math.round((data.summary.publishedExcursions / data.summary.excursions) * 100) : 0;
+
   const rejectExcursion = (id: string, title: string) => {
     const comment = window.prompt(`Причина отклонения экскурсии "${title}"`);
     if (!comment?.trim()) return;
@@ -253,17 +284,22 @@ export default function SystemAdminPage() {
 
       {data && activeSection === 'monitoring' && (
         <>
+          {(() => {
+            const details = getMonitoringDetails(data.summary);
+            return (
           <div className="system-stats admin-kpis">
-            <Card><span>Пользователи</span><strong>{data.summary.users}</strong><small>{data.summary.guides} экскурсоводов, {data.summary.admins} админ.</small></Card>
-            <Card><span>Экскурсии</span><strong>{data.summary.excursions}</strong><small>{data.summary.publishedExcursions} одобрено, {data.summary.reviewExcursions} на модерации</small></Card>
-            <Card><span>Веб-приложения</span><strong>{data.summary.sites}</strong><small>{data.summary.publishedSites} открыто, {data.summary.pendingSites} ожидают решения</small></Card>
+            <Card><span>Пользователи</span><strong>{data.summary.users}</strong><small>{details.users}</small></Card>
+            <Card><span>Экскурсии</span><strong>{data.summary.excursions}</strong><small>{details.excursions}</small></Card>
+            <Card><span>Веб-приложения</span><strong>{data.summary.sites}</strong><small>{details.sites}</small></Card>
             <Card className="donut-card">
-              <div className="donut" style={{ '--checked': `${data.summary.checkedPercent}%` } as CSSProperties}>
-                <span>{data.summary.checkedPercent}%</span>
+              <div className="donut" style={{ '--checked': `${approvedPercent}%` } as CSSProperties}>
+                <span>{approvedPercent}%</span>
               </div>
-              <div><span>Проверено</span><small>{data.summary.checked} проверено, {data.summary.unchecked} не проверено</small></div>
+              <div><span>Одобрено</span><small>{data.summary.publishedExcursions} одобрено, {data.summary.excursions - data.summary.publishedExcursions} не одобрено</small></div>
             </Card>
           </div>
+            );
+          })()}
 
           <div className="system-grid">
             <Card className="system-panel">
@@ -286,7 +322,7 @@ export default function SystemAdminPage() {
             <Card className="system-panel">
               <h2>Контрольные точки</h2>
               <div className="risk-list">
-                {risks.length ? risks.map((item) => <div key={item}>{item}</div>) : <div>Нет заметных задач для администратора</div>}
+                {risks.length ? risks.map((item) => <div key={item}>{item}</div>) : <div>Сейчас нет заметных задач для администратора</div>}
               </div>
             </Card>
           </div>

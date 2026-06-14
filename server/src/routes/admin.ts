@@ -101,9 +101,14 @@ router.get('/overview', requireAuth, requireRole('admin'), async (_req: AuthRequ
 
   const totalDistance = excursions.reduce((sum, item) => sum + (item.route?.distance || 0), 0);
   const totalPoints = excursions.reduce((sum, item) => sum + (item.route?._count.points || 0), 0);
+  const guides = users.filter((item) => item.role === 'guide').length;
+  const admins = users.filter((item) => item.role === 'admin').length;
   const publishedExcursions = excursions.filter((item) => item.status === 'published').length;
+  const draftExcursions = excursions.filter((item) => item.status === 'draft').length;
   const reviewExcursions = excursions.filter((item) => item.status === 'review').length;
   const rejectedExcursions = excursions.filter((item) => item.status === 'archived').length;
+  const publishedSites = sites.filter((item) => item.status === 'published').length;
+  const draftSites = sites.filter((item) => item.status === 'draft').length;
   const rejectedSites = sites.filter((item) => item.status === 'archived').length;
   const pendingSites = sites.filter((item) => item.status === 'review').length;
   const checked = publishedExcursions + rejectedExcursions;
@@ -118,16 +123,18 @@ router.get('/overview', requireAuth, requireRole('admin'), async (_req: AuthRequ
       },
       summary: {
         users: users.length,
-        guides: users.filter((item) => item.role === 'guide').length,
-        admins: users.filter((item) => item.role === 'admin').length,
+        guides,
+        admins,
+        otherUsers: users.length - guides - admins,
         excursions: excursions.length,
         publishedExcursions,
-        draftExcursions: excursions.filter((item) => item.status === 'draft').length,
+        draftExcursions,
         reviewExcursions,
         archivedExcursions: rejectedExcursions,
         media: mediaCount,
         sites: sites.length,
-        publishedSites: sites.filter((item) => item.status === 'published').length,
+        publishedSites,
+        draftSites,
         pendingSites,
         rejectedSites,
         checked,
