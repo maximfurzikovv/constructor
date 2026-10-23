@@ -38,7 +38,7 @@ async function loginAdmin() {
   const adminLogin = await apiRequestRaw('/auth/login', {
     method: 'POST',
     skipAuth: true,
-    body: JSON.stringify({ email: 'admin@constructor.local', password: 'Admin4219!' }),
+    body: JSON.stringify({ email: 'admin@example.test', password: 'TestAdmin-Only-4219!' }),
   });
   assert.equal(adminLogin.response.ok, true);
   return adminLogin.body.data.token;
@@ -164,7 +164,7 @@ test('showcase: published excursion cover is visible in public site data', async
     const adminLogin = await apiRequestRaw('/auth/login', {
       method: 'POST',
       skipAuth: true,
-      body: JSON.stringify({ email: 'admin@constructor.local', password: 'Admin4219!' }),
+      body: JSON.stringify({ email: 'admin@example.test', password: 'TestAdmin-Only-4219!' }),
     });
     assert.equal(adminLogin.response.ok, true);
     const adminToken = adminLogin.body.data.token;

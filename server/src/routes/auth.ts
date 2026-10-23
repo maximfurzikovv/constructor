@@ -4,9 +4,6 @@ import { AuthRequest, clearAuthCookie, createAuthCookie, createJwtToken, hashPas
 
 // Маршруты API:
 const router = Router();
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@constructor.local').trim().toLowerCase();
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin4219!';
-const ADMIN_NAME = process.env.ADMIN_NAME || 'Администратор';
 
 // Формирует данные пользователя для ответа:
 function toResponseUser(user: {
@@ -36,22 +33,6 @@ router.post('/login', async (req, res) => {
     } // Проверка заполнения
 
     const normalizedEmail = String(email).trim().toLowerCase(); // Нормализованная почта
-    if (normalizedEmail === ADMIN_EMAIL && String(password) === ADMIN_PASSWORD) {
-      const admin = await withDbRetry(() => prisma.user.upsert({
-        where: { email: ADMIN_EMAIL },
-        update: { name: ADMIN_NAME, role: 'admin', password: hashPassword(ADMIN_PASSWORD) },
-        create: {
-          email: ADMIN_EMAIL,
-          password: hashPassword(ADMIN_PASSWORD),
-          name: ADMIN_NAME,
-          role: 'admin',
-        },
-      }));
-      const token = createJwtToken(admin);
-      res.setHeader('Set-Cookie', createAuthCookie(token));
-      return res.json({ data: { token, user: toResponseUser(admin) } });
-    }
-
     const user = await withDbRetry(() => prisma.user.findUnique({ where: { email: normalizedEmail } })); // Пользователь
     if (!user || !verifyPassword(String(password), user.password)) {
       return res.status(401).json({ error: 'Неверная почта или пароль' });
@@ -96,8 +77,8 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Пароли не совпадают' });
     } // Проверка повтора
     if (consentPersonalData !== true) {
-      return res.status(400).json({ error: '��������� �������� �� ��������� ������������ ������' });
-    } // �������� ��������
+      return res.status(400).json({ error: 'Требуется согласие на обработку персональных данных' });
+    } // Проверка согласия
 
     const existingUser = await withDbRetry(() => prisma.user.findUnique({ where: { email: normalizedEmail } })); // Существующий аккаунт
     if (existingUser) {

@@ -4,12 +4,39 @@ import { hashPassword } from '../src/authSecurity';
 
 const prisma = new PrismaClient();
 
+function requireSeedValue(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required for demo seed`);
+  return value;
+}
+
 async function main() {
-  // Проверяем, есть ли уже данные.
-  const userCount = await prisma.user.count();
-  if (userCount > 0) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Demo seed is disabled in production');
+  }
+  if (process.env.NODE_ENV !== 'test' && process.env.ALLOW_DEMO_SEED !== 'true') {
+    throw new Error('Set ALLOW_DEMO_SEED=true explicitly to load demo data outside tests');
+  }
+
+  const demoEmail = requireSeedValue('DEMO_USER_EMAIL').toLowerCase();
+  const demoPassword = requireSeedValue('DEMO_USER_PASSWORD');
+
+  // Тестовый администратор создается только в изолированной тестовой среде.
+  if (process.env.NODE_ENV === 'test') {
+    const adminEmail = requireSeedValue('TEST_ADMIN_EMAIL').toLowerCase();
+    const adminPassword = requireSeedValue('TEST_ADMIN_PASSWORD');
+    await prisma.user.upsert({
+      where: { email: adminEmail },
+      update: { name: 'Test Administrator', role: 'admin', password: hashPassword(adminPassword) },
+      create: { email: adminEmail, name: 'Test Administrator', role: 'admin', password: hashPassword(adminPassword) },
+    });
+  }
+
+  // Проверяем, есть ли уже демонстрационный автор.
+  const existingDemoUser = await prisma.user.findUnique({ where: { id: 'user-1' } });
+  if (existingDemoUser) {
     // Обновляем демо-автора.
-    await prisma.user.updateMany({ where: { id: 'user-1' }, data: { name: 'Максим Фурзиков', role: 'guide', password: hashPassword('password123') } });
+    await prisma.user.updateMany({ where: { id: 'user-1' }, data: { email: demoEmail, name: 'Максим Фурзиков', role: 'guide', password: hashPassword(demoPassword) } });
     // Обновляем демо-экскурсии.
     await prisma.excursion.updateMany({ where: { id: 'exc-1' }, data: { title: 'Классический Петербург', description: 'Пешеходная экскурсия по главным достопримечательностям центра Санкт-Петербурга: от Дворцовой площади до Исаакиевского собора.', city: 'Санкт-Петербург' } });
     await prisma.excursion.updateMany({ where: { id: 'exc-2' }, data: { title: 'Васильевский остров', description: 'Прогулка по Васильевскому острову от Стрелки до Академии художеств.', city: 'Санкт-Петербург' } });
@@ -38,11 +65,11 @@ async function main() {
   }
 
   // Создаем демонстрационного автора.
-  const demoPasswordHash = hashPassword('password123'); // Хэш тестового пароля
+  const demoPasswordHash = hashPassword(demoPassword); // Хэш пароля из окружения
   const user = await prisma.user.create({
     data: {
       id: 'user-1',
-      email: 'guide@example.com',
+      email: demoEmail,
       password: demoPasswordHash,
       name: 'Максим Фурзиков',
       role: 'guide',

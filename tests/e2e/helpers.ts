@@ -27,7 +27,7 @@ export async function getAdminToken() {
   if (adminToken) return adminToken;
   const api = await request.newContext({ baseURL: apiBaseUrl });
   const response = await api.post('/api/auth/login', {
-    data: { email: 'admin@constructor.local', password: 'Admin4219!' },
+    data: { email: 'admin@example.test', password: 'TestAdmin-Only-4219!' },
   });
   const body = await response.json().catch(() => null);
   expect(response.ok(), `Admin login failed: ${response.status()} ${JSON.stringify(body)}`).toBeTruthy();

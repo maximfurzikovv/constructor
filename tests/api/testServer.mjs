@@ -31,6 +31,10 @@ function createServerEnv() {
     APPDATA: source.APPDATA || '', // npm хранит часть служебных данных тут
     NODE_ENV: 'test',
     PORT: TEST_SERVER_PORT,
+    DEMO_USER_EMAIL: 'guide@example.com',
+    DEMO_USER_PASSWORD: 'password123',
+    TEST_ADMIN_EMAIL: 'admin@example.test',
+    TEST_ADMIN_PASSWORD: 'TestAdmin-Only-4219!',
   };
 }
 

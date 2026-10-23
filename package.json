@@ -22,7 +22,8 @@
     "test:all": "npm run test:unit && npm run test:api && npm run test:e2e",
     "build": "npm run db:generate --workspace=server && npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=client",
     "deploy:start": "node server/dist/index.js",
-    "docker:start": "npm run db:push --workspace=server && npm run db:seed --workspace=server && node server/dist/index.js"
+    "docker:start": "npm run db:push --workspace=server && node server/dist/index.js",
+    "admin:create": "npm run admin:create --workspace=server"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0"

@@ -2,8 +2,8 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function loginAdmin(page: Page) {
   await page.goto('/login');
-  await page.locator('input[type="email"]').fill('admin@constructor.local');
-  await page.locator('input[type="password"]').fill('Admin4219!');
+  await page.locator('input[type="email"]').fill('admin@example.test');
+  await page.locator('input[type="password"]').fill('TestAdmin-Only-4219!');
   await page.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/admin\/system/);
 }
@@ -29,8 +29,8 @@ test('admin panel filters users and moderation lists', async ({ page }) => {
   await loginAdmin(page);
 
   await page.goto('/admin/system/users');
-  await page.locator('.admin-filters input').fill('admin@constructor.local');
-  await expect(page.locator('.admin-table')).toContainText('admin@constructor.local');
+  await page.locator('.admin-filters input').fill('admin@example.test');
+  await expect(page.locator('.admin-table')).toContainText('admin@example.test');
   await page.locator('.admin-filters select').selectOption('admin');
   await expect(page.locator('.role-pill.admin').first()).toBeVisible();
 

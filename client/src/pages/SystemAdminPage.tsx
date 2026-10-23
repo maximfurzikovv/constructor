@@ -18,7 +18,6 @@ type CheckItem = {
 };
 
 type AdminOverview = {
-  credentials: { email: string };
   summary: {
     users: number;
     guides: number;

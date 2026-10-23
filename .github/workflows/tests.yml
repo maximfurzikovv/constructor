@@ -82,6 +82,12 @@ jobs:
         run: npm ci
 
       - name: Prepare database
+        env:
+          NODE_ENV: test
+          DEMO_USER_EMAIL: guide@example.com
+          DEMO_USER_PASSWORD: password123
+          TEST_ADMIN_EMAIL: admin@example.test
+          TEST_ADMIN_PASSWORD: TestAdmin-Only-4219!
         run: |
           npm run db:generate --workspace=server
           npm run db:push --workspace=server
@@ -121,6 +127,12 @@ jobs:
         run: npm ci
 
       - name: Prepare database
+        env:
+          NODE_ENV: test
+          DEMO_USER_EMAIL: guide@example.com
+          DEMO_USER_PASSWORD: password123
+          TEST_ADMIN_EMAIL: admin@example.test
+          TEST_ADMIN_PASSWORD: TestAdmin-Only-4219!
         run: |
           npm run db:generate --workspace=server
           npm run db:push --workspace=server

@@ -9,7 +9,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts"
+    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
+    "admin:create": "tsx src/scripts/createAdmin.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",

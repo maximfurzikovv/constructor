@@ -14,7 +14,7 @@ async function loginAdmin() {
   const result = await apiRequestRaw('/auth/login', {
     method: 'POST',
     skipAuth: true,
-    body: JSON.stringify({ email: 'admin@constructor.local', password: 'Admin4219!' }),
+    body: JSON.stringify({ email: 'admin@example.test', password: 'TestAdmin-Only-4219!' }),
   });
   assert.equal(result.response.ok, true);
   return result.body.data.token;

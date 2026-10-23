@@ -118,9 +118,6 @@ router.get('/overview', requireAuth, requireRole('admin'), async (_req: AuthRequ
 
   res.json({
     data: {
-      credentials: {
-        email: process.env.ADMIN_EMAIL || 'admin@constructor.local',
-      },
       summary: {
         users: users.length,
         guides,

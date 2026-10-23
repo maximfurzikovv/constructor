@@ -8,6 +8,9 @@ import mediaRoutes from './routes/media'; // Маршруты работы с м
 import showcaseRoutes from './routes/showcase'; // Маршруты работы с созданным сайтом
 import adminRoutes from './routes/admin';
 import prisma, { withDbRetry } from './db';
+import { validateRuntimeConfig } from './runtimeConfig';
+
+validateRuntimeConfig();
 // Создание приложения:
 const app = express();
 const PORT = Number(process.env.PORT) || 3001; // Порт

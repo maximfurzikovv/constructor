@@ -33,7 +33,7 @@ services:
       NODE_ENV: production
       PORT: 3001
       DATABASE_URL: postgresql://constructor:constructor@db:5432/constructor?schema=public
-      JWT_SECRET: local-docker-secret-change-before-production
+      JWT_SECRET: ${JWT_SECRET:?Set a unique random JWT_SECRET with at least 32 characters}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}

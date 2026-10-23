@@ -12,6 +12,10 @@ const env = {
   TEST_DATABASE_URL: testDatabaseUrl,
   DATABASE_URL: testDatabaseUrl,
   TEST_SERVER_PORT: process.env.TEST_SERVER_PORT || '3011',
+  DEMO_USER_EMAIL: 'guide@example.com',
+  DEMO_USER_PASSWORD: 'password123',
+  TEST_ADMIN_EMAIL: 'admin@example.test',
+  TEST_ADMIN_PASSWORD: 'TestAdmin-Only-4219!',
 };
 
 const testFiles = readdirSync(join(process.cwd(), 'tests', 'api'))
