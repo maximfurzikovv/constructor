@@ -108,5 +108,5 @@ test('auth: registration without personal data consent is rejected', async () =>
   });
 
   assert.equal(response.status, 400);
-  assert.equal(body.error, 'Требуется согласие на обработку персональных данных');
+  assert.equal(body.error, 'РўСЂРµР±СѓРµС‚СЃСЏ СЃРѕРіР»Р°СЃРёРµ РЅР° РѕР±СЂР°Р±РѕС‚РєСѓ РїРµСЂСЃРѕРЅР°Р»СЊРЅС‹С… РґР°РЅРЅС‹С…');
 });
