@@ -1,0 +1,37 @@
+# Локальные зависимости не копируются в Docker-образ:
+node_modules
+client/node_modules
+server/node_modules
+shared/node_modules
+
+# Собранные файлы создаются внутри Docker:
+client/dist
+server/dist
+shared/dist
+
+# Временные и отчетные файлы не нужны в образе:
+playwright-report
+test-results
+tmp_docx_render
+tmp_docx_temp
+render_docx_check
+
+# Локальные настройки и секреты не копируются в образ:
+.env
+server/.env
+.git
+.idea
+.DS_Store
+*.tsbuildinfo
+server/uploads
+.codex
+.codex-qa
+.docx_work
+.pptx_work
+tmp_*
+**/__pycache__
+~$*
+
+# Документы и изображения отчета не нужны приложению:
+*.docx
+*.png
